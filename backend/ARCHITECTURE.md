@@ -34,7 +34,11 @@ backend/
 │   │   ├── centers/            # emergency centers layer
 │   │   └── seed/               # demo data
 │   └── integrations/           # wrappers over external APIs
-│       ├── claude_client.py    # Claude API (report parsing, center extraction)
+│       ├── ai/                 # provider-agnostic AI layer (see "AI connectors")
+│       │   ├── connector.py    # AIConnector interface + AIConnectorError
+│       │   ├── factory.py      # get_ai_connector() picks the provider from settings
+│       │   ├── providers/      # anthropic.py, openai.py, fake.py, ... one file per provider
+│       │   └── prompts/        # prompt templates (report parsing, center extraction, dedup check)
 │       └── geocoder.py         # Nominatim
 ├── scripts/                    # scrape_centers.py and other one-off scripts
 ├── data/                       # centers_snapshot.json, seed data
@@ -67,7 +71,7 @@ Request flow: `router → service → repository → DB`. Calls to external APIs
 | Migrations     | Alembic                                                   |
 | Settings       | pydantic-settings                                         |
 | Auth           | PyJWT + pwdlib[argon2]                                    |
-| AI             | Anthropic SDK (model name from env `CLAUDE_MODEL`)        |
+| AI             | Any LLM behind `AIConnector`; provider and model from env (`AI_PROVIDER`, `AI_MODEL`, `AI_API_KEY`) |
 | Geocoding      | Nominatim over httpx, rate limited, results cached        |
 | Tests / lint   | pytest + httpx `AsyncClient`, ruff                        |
 
@@ -103,7 +107,7 @@ Tables:
 The map itself is rendered on the frontend (Leaflet + OpenStreetMap tiles). The backend's job is to
 **store points and return the ones inside the visible area**.
 
-**Storage.** Each incident and center has a `location geography(Point, 4326)` column with a GiST
+**Storage.** See `DATA_MODEL.md` for every table. Each incident and center has a `location geography(Point, 4326)` column with a GiST
 index. The API exposes plain `lat` / `lng` numbers; conversion happens only in `shared/geo.py`.
 
 **Getting coordinates for an incident** (first match wins):
@@ -120,15 +124,44 @@ index. The API exposes plain `lat` / `lng` numbers; conversion happens only in `
 - The bbox query uses `ST_MakeEnvelope` + `ST_Intersects`, and nearest/dedup use `ST_DWithin` /
   `ST_Distance`. All of these live as helpers in `shared/geo.py` and are reused by every module.
 
+## AI connectors (`integrations/ai`)
+
+The app never imports a vendor SDK directly. Everything goes through one interface:
+
+```python
+# integrations/ai/connector.py
+class AIConnector(Protocol):
+    provider_name: str
+    model_name: str
+
+    async def generate_structured(
+        self, system_prompt: str, user_prompt: str, output_schema: type[T]
+    ) -> T: ...
+```
+
+- `generate_structured` returns a validated Pydantic object (`ParsedReport`, `ExtractedCenter`,
+  `DuplicateCheck`). Each provider maps this to its own structured-output / JSON mode.
+- Each provider is one file in `providers/`. The `fake` provider returns deterministic results for
+  tests and offline demos, so nothing needs a network or an API key.
+- `factory.get_ai_connector()` reads `AI_PROVIDER` / `AI_MODEL` from settings and is used as a
+  FastAPI dependency. Switching model or vendor is an env change; adding a vendor is one new file.
+- Prompts live in `prompts/` and are shared by all providers.
+- Provider errors are wrapped in `AIConnectorError`. Callers handle that one exception and fall back
+  (store the raw report with `status = failed`).
+- Every report row stores `ai_provider` and `ai_model`, so results can be compared across models.
+
 ## Report intake pipeline (`modules/reports`)
 
 ```
 text (+ optional lat/lng)
-  → claude_client.parse_report()      → ParsedReport (location_text, need_type, urgency, people_needed, tasks)
+  → ai_connector.parse_report()      → ParsedReport (location_text, need_type, urgency, people_needed, tasks)
   → resolve_location()                → point (client coordinates or geocoder)
   → incidents.service.find_duplicate()→ open incident, same need_type, within ~200 m
   → merge (report_count += 1, keep the higher urgency) OR incidents.service.create_incident()
+  → incidents.service.recalculate_magnitude()
 ```
+
+Merging and magnitude rules are in `DATA_MODEL.md`. Magnitude (0–100) drives marker size on the map.
 
 Every raw report is stored in a `reports` table linked to its incident (for audit and verification).
 
@@ -136,7 +169,7 @@ Every raw report is stored in a `reports` table linked to its incident (for audi
 
 - New feature = new folder in `modules/` + one line in `app/api.py` + one Alembic migration.
 - No imports from another module's `models.py` / `repository.py`. Import its `service.py` instead.
-- Swapping a provider (another LLM, another geocoder) means changing one file in `integrations/`.
+- Swapping a provider (another LLM, another geocoder) means adding or changing one file in `integrations/` plus an env var.
 - Config only from `core/config.py`. No hardcoded keys, URLs or thresholds.
 - Errors: raise domain exceptions (`NotFoundError`, `PermissionDeniedError`) from services. They are
   mapped to HTTP responses in one place (`core/exceptions.py`).

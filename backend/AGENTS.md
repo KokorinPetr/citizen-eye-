@@ -7,7 +7,7 @@ We work **only in `/backend`**. Do not edit `/frontend` or other folders unless 
 Civic Eye is a hackathon web app (U Hackathon, AI track) for coordinating flood response in Bangkok.
 
 - People report problems in free text (Thai, English or Russian), optionally with a photo.
-- The Claude API turns each report into a structured incident: location, need type
+- An AI model (through our connector layer) turns each report into a structured incident: location, need type
   (evacuation, food, medicine, boat, other), urgency, people needed and tasks with roles.
 - Reports about the same place and need are merged (deduplication) into one incident.
 - Volunteers see incidents on a live map, tap "I'm going", and the helper counter updates for everyone (frontend polls).
@@ -21,7 +21,7 @@ Out of scope: in-app chat, push notifications, official warning system integrati
 
 - **FastAPI** (Python) — the backend web framework; served with `uvicorn`.
 - **PostgreSQL** (Supabase or Neon in production).
-- **Claude API** (Anthropic SDK) for parsing reports and extracting center data.
+- **AI via connectors** (`app/integrations/ai/`): provider-agnostic, chosen by env. Never import a vendor SDK outside `providers/`.
 - API keys live only in environment variables (`.env`, never committed). CORS must be enabled.
 
 ### API
@@ -48,6 +48,26 @@ Out of scope: in-app chat, push notifications, official warning system integrati
 The frontend generates a typed client from our OpenAPI schema, so keep request/response models
 explicit and accurate (always set `response_model` / return type annotations).
 
+## Local setup
+
+Use the `Makefile` (`make help` lists all commands). `make dev` does everything below in one go.
+
+```bash
+cp .env.example .env                      # then set JWT_SECRET_KEY
+docker compose up -d --wait               # Postgres 17 + PostGIS on :5432 (dbs: civic_eye, civic_eye_test)
+uv sync
+uv run alembic upgrade head               # apply migrations
+uv run uvicorn app.main:app --reload      # http://localhost:8000/docs
+uv run pytest                             # tests use the civic_eye_test db
+```
+
+- The DB image is `imresamu/postgis` (a multi-arch build of `postgis/postgis`, which has no arm64 image).
+- Reset the DB completely: `docker compose down -v && docker compose up -d --wait`.
+- Migrations: change models → `uv run alembic revision --autogenerate -m "..."` → review the file →
+  `uv run alembic upgrade head`. Register new module models in `app/models.py`. Alembic ignores DB
+  tables we don't define (PostGIS/tiger), so dropping one of ours needs a manual `op.drop_table`.
+- DB sessions: services call `await session.commit()` explicitly; repositories only `flush()`.
+
 ## Python tooling: use `uv` only
 
 All Python runs through **uv**. Never use `pip`, `pip install`, `python -m venv`, `poetry` or bare `python`.
@@ -61,6 +81,7 @@ uv run uvicorn app.main:app --reload      # run the API locally
 uv run pytest                             # run tests
 uv run ruff check . && uv run ruff format . # lint and format
 uv run python -m scripts.scrape_centers   # run a script
+uv run alembic upgrade head               # run migrations
 ```
 
 Commit both `pyproject.toml` and `uv.lock`.
@@ -68,6 +89,7 @@ Commit both `pyproject.toml` and `uv.lock`.
 ## Architecture and roadmap
 
 - **`ARCHITECTURE.md`**: the modular monolith layout, auth design, coordinates/map, and report pipeline. Read it before adding code.
+- **`DATA_MODEL.md`**: tables, enums, merging rules and incident magnitude.
 - **`ROADMAP.md`**: the phased task list. Tick items `[x]` when they are done and keep the list current.
 
 Short version: each feature is its own folder in `app/modules/<feature>/` with `router.py`,
@@ -79,7 +101,7 @@ other only through `service.py`. Routers stay thin. All DB queries go in reposit
 
 Follow PEP 8 and modern typed Python (3.12+).
 
-- **Classes**: `PascalCase` — `Incident`, `IncidentCreate`, `IncidentRead`, `ClaudeClient`.
+- **Classes**: `PascalCase` — `Incident`, `IncidentCreate`, `IncidentRead`, `AnthropicConnector`.
 - **Functions and variables**: `snake_case`, verbs for functions — `create_incident`, `find_nearby_incidents`, `parse_report_text`.
 - **Constants**: `UPPER_SNAKE_CASE` — `DEFAULT_SEARCH_RADIUS_M`.
 - **Modules/files**: `snake_case.py`, named after what they contain.
@@ -94,6 +116,6 @@ Follow PEP 8 and modern typed Python (3.12+).
   (the module's `service.py`, `app/shared/` or `app/integrations/`) and import it. Do not copy-paste code.
 - Shared query filters (status, type, bounding box) live in one helper used by both
   `GET /incidents` and `GET /centers`.
-- Prompts for Claude live in one place (e.g. `app/integrations/prompts.py`), not inline in routers.
+- AI prompts live in one place (e.g. `app/integrations/ai/prompts/`), not inline in routers.
 - Configuration values come from `core/config.py`; never hardcode keys, URLs or magic numbers.
 - Before writing a new helper, check whether one already exists.
