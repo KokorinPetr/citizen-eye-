@@ -15,7 +15,7 @@ Civic Eye is a hackathon web app (U Hackathon, AI track) for coordinating flood 
 - An emergency-centers layer (shelters, hospitals, fire stations, hotlines) is loaded from a saved
   JSON snapshot (OpenStreetMap / BMA sources), each entry with `source_url` and `retrieved_at`.
 
-Out of scope: user accounts, in-app chat, push notifications, official warning system integration.
+Out of scope: in-app chat, push notifications, official warning system integration.
 
 ### Stack
 
@@ -65,35 +65,15 @@ uv run python -m scripts.scrape_centers   # run a script
 
 Commit both `pyproject.toml` and `uv.lock`.
 
-## Project structure
+## Architecture and roadmap
 
-```
-backend/
-├── pyproject.toml
-├── uv.lock
-├── .env.example
-├── app/
-│   ├── main.py              # FastAPI app factory, CORS, router registration
-│   ├── core/
-│   │   ├── config.py        # Settings (pydantic-settings), read from env
-│   │   └── database.py      # Engine, session, get_db dependency
-│   ├── models/              # SQLAlchemy ORM models (one file per table)
-│   ├── schemas/             # Pydantic request/response models
-│   ├── routers/             # Thin HTTP layer: one file per resource (reports, incidents, centers, seed)
-│   ├── services/            # Business logic (incident creation, dedup, AI parsing, centers lookup)
-│   ├── clients/             # External integrations (Claude, Nominatim, Overpass)
-│   └── utils/               # Small shared helpers (geo distance, bbox parsing, ...)
-├── scripts/                 # One-off scripts: scrape_centers.py, seed data
-├── data/                    # Saved snapshots, e.g. centers_snapshot.json
-└── tests/
-```
+- **`ARCHITECTURE.md`**: the modular monolith layout, auth design, coordinates/map, and report pipeline. Read it before adding code.
+- **`ROADMAP.md`**: the phased task list. Tick items `[x]` when they are done and keep the list current.
 
-Layering rules:
-
-- **Routers** only handle HTTP: parse input, call a service, return a schema. No business logic or raw SQL.
-- **Services** hold the logic and are reusable from routers, scripts and tests.
-- **Clients** wrap third-party APIs so the rest of the code never talks to them directly.
-- Use FastAPI dependencies (`Depends`) for shared concerns like DB sessions and settings.
+Short version: each feature is its own folder in `app/modules/<feature>/` with `router.py`,
+`schemas.py`, `models.py`, `repository.py`, `service.py` and `dependencies.py`. Shared infrastructure goes in
+`app/core/`, shared helpers in `app/shared/`, and external APIs in `app/integrations/`. Modules use each
+other only through `service.py`. Routers stay thin. All DB queries go in repositories.
 
 ## Naming and style
 
@@ -111,9 +91,9 @@ Follow PEP 8 and modern typed Python (3.12+).
 ## Reusability
 
 - **If logic is used in more than one place, extract it** into a function in the appropriate module
-  (`services/`, `utils/` or `clients/`) and import it. Do not copy-paste code.
+  (the module's `service.py`, `app/shared/` or `app/integrations/`) and import it. Do not copy-paste code.
 - Shared query filters (status, type, bounding box) live in one helper used by both
   `GET /incidents` and `GET /centers`.
-- Prompts for Claude live in one place (e.g. `services/ai_prompts.py`), not inline in routers.
+- Prompts for Claude live in one place (e.g. `app/integrations/prompts.py`), not inline in routers.
 - Configuration values come from `core/config.py`; never hardcode keys, URLs or magic numbers.
 - Before writing a new helper, check whether one already exists.
