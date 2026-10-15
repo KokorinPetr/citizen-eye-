@@ -6,6 +6,7 @@
   <title>Civic Eye dev map</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="/dev/assets/common.js"></script>
   <style>
     html, body, #map { height: 100%; margin: 0; font: 13px system-ui, sans-serif; }
     .panel { position: absolute; top: 10px; right: 10px; z-index: 1000; background: #fff;
@@ -22,9 +23,11 @@
 <div id="map"></div>
 <div class="panel">
   <h3>Civic Eye · dev map</h3>
+  <div style="margin-bottom:6px"><a href="/dev/report">→ Report playground (AI)</a></div>
   <label><input type="checkbox" id="show-incidents" checked> Incidents</label>
   <label><input type="checkbox" id="show-resolved"> + resolved</label>
   <label><input type="checkbox" id="show-centers" checked> Shelters / supply points</label>
+  <label><input type="checkbox" id="show-official" checked> Hospitals / fire / police <span class="muted">(OSM, zoom ≥ 10)</span></label>
   <div style="margin-top:6px">
     <span class="dot" style="background:#7b1fa2"></span>critical
     <span class="dot" style="background:#d32f2f"></span>high<br>
@@ -32,23 +35,31 @@
     <span class="dot" style="background:#fbc02d"></span>low
     <span class="dot" style="background:#9e9e9e"></span>resolved
   </div>
-  <div class="muted" style="margin-top:6px">Size = magnitude. Dashed = in progress. Squares = centers.<br>
+  <div class="muted" style="margin-top:6px">Size = magnitude. Dashed = in progress.<br>Squares = community places, dots = official.<br>
     Click empty map → copy location JSON.<br><span id="status">loading…</span></div>
 </div>
 <script>
   const URGENCY_COLORS = { critical: "#7b1fa2", high: "#d32f2f", medium: "#f57c00", low: "#fbc02d" };
-  const CENTER_COLORS = { shelter: "#1976d2", supply_point: "#388e3c" };
+  const CENTER_COLORS = {
+    shelter: "#1976d2", supply_point: "#388e3c", hospital: "#c62828", fire_station: "#ef6c00", police: "#283593",
+  };
+  const COMMUNITY_TYPES = ["shelter", "supply_point"];
+  const OFFICIAL_TYPES = ["hospital", "fire_station", "police"];
+  const OFFICIAL_MIN_ZOOM = 10;
+  const formatDistance = (m) => (m < 1000 ? `${m} m` : `${(m / 1000).toFixed(1)} km`);
   const POLL_MS = 5000;
 
-  const map = L.map("map").setView([13.0, 101.0], 6);  // all of Thailand
+  // Default: all of Thailand. /dev/map?lat=..&lng=..&zoom=.. opens at a point (used by /dev/report).
+  const params = new URLSearchParams(location.search);
+  const map = L.map("map").setView(
+    [Number(params.get("lat") ?? 13.0), Number(params.get("lng") ?? 101.0)], Number(params.get("zoom") ?? 6));
   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19, attribution: "&copy; OpenStreetMap contributors",
   }).addTo(map);
   const incidentLayer = L.layerGroup().addTo(map);
   const centerLayer = L.layerGroup().addTo(map);
 
-  const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g,
-    (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+  const { escapeHtml, getJson } = window.civic;
   const $ = (id) => document.getElementById(id);
 
   function currentBbox() {
@@ -58,16 +69,20 @@
       .map((v) => v.toFixed(5)).join(",");
   }
 
-  async function getJson(path) {
-    const response = await fetch(path);
-    if (!response.ok) throw new Error(`${path} → ${response.status}`);
-    return response.json();
-  }
-
   async function incidentPopup(id) {
-    const [i, volunteers] = await Promise.all([
-      getJson(`/incidents/${id}`), getJson(`/incidents/${id}/volunteers`),
+    const [i, volunteers, reports] = await Promise.all([
+      getJson(`/incidents/${id}`), getJson(`/incidents/${id}/volunteers`), getJson(`/incidents/${id}/reports`),
     ]);
+    const near = (types) => getJson(`/centers/nearest?lat=${i.location.lat}&lng=${i.location.lng}&limit=1&` +
+      types.map((t) => `center_type=${t}`).join("&"));
+    const [hospital] = await near(["hospital"]);
+    const [shelter] = await near(["shelter", "supply_point"]);
+    const nearby = [hospital, shelter].filter(Boolean).map((c) =>
+      `${c.center_type === "hospital" ? "🏥" : "🏠"} ${escapeHtml(c.name)} · ${formatDistance(c.distance_m)}` +
+      `${c.phone ? ` · ☎ ${escapeHtml(c.phone)}` : ""}`).join("<br>");
+    const history = reports.map((r) => `<li>${new Date(r.created_at).toLocaleTimeString()} ` +
+      `<span class="muted">${escapeHtml(r.language || "?")} · ${escapeHtml(r.urgency)}</span> ` +
+      `${escapeHtml(r.summary ?? "(not parsed)")}</li>`).join("");
     const tasks = i.tasks.map((t) => {
       const names = volunteers.filter((v) => v.task.id === t.id)
         .map((v) => escapeHtml(v.user.full_name) + (v.status === "completed" ? " ✓" : "")).join(", ");
@@ -77,10 +92,16 @@
     }).join("");
     return `<div class="popup"><h4>${escapeHtml(i.title)}</h4>
       <b>${escapeHtml(i.need_type)}</b> · ${escapeHtml(i.urgency)} · ${escapeHtml(i.status)}<br>
-      magnitude <b>${i.magnitude}</b> (level ${i.magnitude_level}) · reports ${i.report_count}<br>
+      magnitude <b>${i.magnitude}</b> (level ${i.magnitude_level}) ·
+      ${i.report_count} reports from ${i.source_count} ${i.source_count === 1 ? "person" : "people"}
+      ${i.is_verified ? ' · <b style="color:#2e7d32">✔ verified</b>' : ""}<br>
       helpers <b>${i.helpers_signed_up}/${i.helpers_needed}</b><br>
       ${escapeHtml(i.summary)}<br><span class="muted">${escapeHtml(i.location_text)}</span>
-      <ul>${tasks}</ul><span class="muted">id <code>${i.id}</code></span></div>`;
+      ${i.contact_phone ? `<br>☎ ${escapeHtml(i.contact_phone)}` : ""}
+      <ul>${tasks}</ul>
+      ${nearby ? `<div class="muted">Nearest help:</div>${nearby}` : ""}
+      <div class="muted" style="margin-top:4px">Reports:</div><ol style="margin:2px 0;padding-left:18px">${history}</ol>
+      <span class="muted">id <code>${i.id}</code></span></div>`;
   }
 
   function centerPopup(c) {
@@ -89,6 +110,7 @@
       ${escapeHtml(c.description)}<br>
       supplies: <b>${escapeHtml(c.supplies.join(", ") || "—")}</b><br>
       ${c.capacity ? `capacity ${c.capacity}<br>` : ""}${c.phone ? `☎ ${escapeHtml(c.phone)}<br>` : ""}
+      ${c.source_url ? `<a href="${escapeHtml(c.source_url)}" target="_blank">source</a><br>` : ""}
       <span class="muted">id <code>${c.id}</code></span></div>`;
   }
 
@@ -116,14 +138,20 @@
         }
       }
 
-      if ($("show-centers").checked) {
-        const centers = await getJson(`/centers?bbox=${bbox}`);
+      const centerTypes = [
+        ...($("show-centers").checked ? COMMUNITY_TYPES : []),
+        ...($("show-official").checked && map.getZoom() >= OFFICIAL_MIN_ZOOM ? OFFICIAL_TYPES : []),
+      ];
+      if (centerTypes.length) {
+        const query = new URLSearchParams([["bbox", bbox], ...centerTypes.map((t) => ["center_type", t])]);
+        const centers = await getJson(`/centers?${query}`);
         centerCount = centers.length;
         for (const c of centers) {
           const color = CENTER_COLORS[c.center_type] || "#455a64";
+          const round = c.is_official ? "border-radius:50%;" : "";  // official = round, community = square
           L.marker([c.location.lat, c.location.lng], {
             icon: L.divIcon({ className: "", iconSize: [16, 16],
-              html: `<div style="width:14px;height:14px;background:${color};border:2px solid #fff;box-shadow:0 0 3px #000"></div>` }),
+              html: `<div style="width:12px;height:12px;${round}background:${color};border:2px solid #fff;box-shadow:0 0 3px #000"></div>` }),
           }).bindPopup(centerPopup(c)).bindTooltip(c.name).addTo(centerLayer);
         }
       }
@@ -141,7 +169,7 @@
       .openOn(map);
   });
   map.on("moveend", refresh);
-  for (const id of ["show-incidents", "show-resolved", "show-centers"]) $(id).addEventListener("change", refresh);
+  for (const id of ["show-incidents", "show-resolved", "show-centers", "show-official"]) $(id).addEventListener("change", refresh);
   setInterval(() => { if (!map._popup?.isOpen()) refresh(); }, POLL_MS);
   refresh();
 </script>

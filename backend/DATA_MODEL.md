@@ -27,7 +27,7 @@ centers        (independent map layer)
 | `TaskStatus`     | `open`, `filled`, `done`                                                |
 | `SignupStatus`   | `going`, `completed`, `cancelled`                                       |
 | `ReportSource`   | `manual`, `ai`, `seed`                                                  |
-| `ReportStatus`   | `pending`, `parsed`, `failed` (Phase 4)                                 |
+| `ReportStatus`   | `parsed`, `failed` (AI failed, fallback used), `rejected` (not a request) |
 | `UserRole`       | `user`, `coordinator`, `admin`                                          |
 | `CenterType`     | `shelter`, `supply_point`, `hospital`, `fire_station`, `police`, `other` |
 | `CenterSource`   | `user`, `osm`, `bma`, `official`                                        |
@@ -68,8 +68,9 @@ centers        (independent map layer)
 | location_text   | text null            | "Soi 12, Lat Phrao", for humans only              |
 | people_affected | int null             | estimate from reports                             |
 | contact_phone   | text null            | only shown to logged-in users                     |
-| report_count    | int                  | default 1, +1 on each merge                       |
-| is_verified     | bool                 | 2+ independent reports or volunteer confirmation  |
+| report_count    | int                  | number of reports (recounted)                     |
+| source_count    | int                  | independent reporters; anonymous count once       |
+| is_verified     | bool                 | 2+ independent sources (never goes back to false) |
 | owner_id        | FK users null        | logged-in creator; can edit, resolve, reopen, delete |
 | last_report_at  | timestamptz          | latest merged report                              |
 | resolved_at     | timestamptz null     |                                                   |
@@ -126,7 +127,10 @@ that calls `incidents.service`.
 | magnitude       | smallint          | this report's own magnitude                   |
 | location        | geography(Point)  | pin sent with the report                      |
 | parsed_data     | jsonb null        | full AI output (`ParsedReport`)               |
-| (Phase 4)       |                   | `status`, `language`, `ai_provider`, `ai_model` |
+| status          | ReportStatus      |                                               |
+| language        | text null         | detected by the AI: `th`, `en`, `ru`, ...     |
+| ai_provider     | text null         | e.g. `deepseek`; null if not parsed by AI     |
+| ai_model        | text null         | e.g. `deepseek-flash`                          |
 
 ### `centers` (module: centers)
 | Column       | Type             | Notes                           |
@@ -150,14 +154,15 @@ Hotlines (191, 199, 1669, 1155, 1555) are a static file `data/hotlines.json`, se
 ## Merging and magnitude
 
 ### Merging related reports (deduplication)
-A new report is merged into an existing incident when all of these hold:
-- the incident is `open` or `in_progress`, **or `resolved` less than 24 h ago (then it is reopened)**,
-- it is within `DEDUP_RADIUS_M` (default 200 m, set in config),
-- the `need_type` is the same, or the AI connector confirms that both describe the same situation.
+See `README.md` → "How merging reports works" for the full rules. In short: within
+`DEDUP_RADIUS_M` (200 m), active or resolved < `REOPEN_WINDOW_HOURS` (24 h), same need **group**
+(`merge_rules.py`: rescue = evacuation+boat, health = medicine+medical, supplies = food+water,
+shelter; `other` matches all). Closest wins; the candidate row is locked (`FOR UPDATE`).
 
-On merge: link the report, `report_count += 1`, keep the higher `urgency`, add task roles that are
-missing, update `last_report_at`, mark the incident verified if the report is independent
-(different user or anonymous with a different location), then **recalculate magnitude**.
+On merge: link the report, keep the higher `urgency` and larger `people_affected`, add task roles
+that are missing, fill a missing `contact_phone`, reopen if resolved, then recount
+`report_count` / `source_count`, set `is_verified` (≥ `VERIFIED_MIN_SOURCES` = 2) and recalculate
+magnitude. Sources: each logged-in reporter once + all anonymous reports together once.
 
 ### Magnitude (0–100)
 Magnitude measures how serious and well-confirmed an incident is. The frontend uses it for **marker size**
@@ -168,13 +173,14 @@ added/merged or the incident is verified.
 ```
 report_magnitude   = urgency_points + min(people_affected, 15)
 incident_magnitude = avg(report_magnitudes)
-                   + min(8 × (report_count − 1), 20)    # more confirming reports → bigger
+                   + min(8 × (source_count − 1), 20)    # more independent sources → bigger
                    + 5 if verified
 ```
 Urgency points: low 10 · medium 25 · high 45 · critical 60. Clamped to 0–100. The average keeps one
 exaggerated report from inflating an incident; the bonus keeps "more reports = more important".
 
-Example: reports of 48, 70 and 25 → avg 48 + 16 (3 reports) + 5 (verified) = **69, level 4**. The API also returns `magnitude_level` (1–5, i.e. `ceil(magnitude / 20)`) to make
+Example: reports of 48, 70 and 25 from 3 people → avg 48 + 16 + 5 (verified) = **69, level 4**.
+The same person reporting 3 times → avg 48 + 0, not verified = 48. The API also returns `magnitude_level` (1–5, i.e. `ceil(magnitude / 20)`) to make
 marker sizing on the frontend easy.
 
 **Priority** (sort order for volunteers) is computed and never stored:

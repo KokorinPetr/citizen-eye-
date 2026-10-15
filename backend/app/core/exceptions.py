@@ -46,6 +46,12 @@ class PermissionDeniedError(AppError):
     default_message = "Not enough permissions"
 
 
+class ServiceUnavailableError(AppError):
+    status_code = 503
+    code = "service_unavailable"
+    default_message = "Service temporarily unavailable"
+
+
 async def handle_app_error(request: Request, exc: Exception) -> JSONResponse:
     assert isinstance(exc, AppError)
     headers = {"WWW-Authenticate": "Bearer"} if isinstance(exc, AuthenticationError) else None

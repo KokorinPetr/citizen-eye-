@@ -118,6 +118,8 @@ Follow PEP 8 and modern typed Python (3.12+).
   (the module's `service.py`, `app/shared/` or `app/integrations/`) and import it. Do not copy-paste code.
 - Shared query filters (status, type, bounding box) live in one helper used by both
   `GET /incidents` and `GET /centers`.
-- AI prompts live in one place (e.g. `app/integrations/ai/prompts/`), not inline in routers.
+- AI prompts live in the module that uses them (e.g. `app/modules/reports/prompts.py`), never inline
+  in routers. `app/integrations/ai` stays generic.
+- Tests never call a real AI: they use the `fake` provider or override `get_ai_connector`.
 - Configuration values come from `core/config.py`; never hardcode keys, URLs or magic numbers.
 - Before writing a new helper, check whether one already exists.

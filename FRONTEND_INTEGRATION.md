@@ -124,7 +124,7 @@ Coordinates are always `{ "lat": 13.75, "lng": 100.5 }`. Leaflet takes `[lat, ln
   "need_type": "evacuation", "urgency": "critical", "status": "in_progress",
   "magnitude": 66, "magnitude_level": 4,
   "location": { "lat": 20.428, "lng": 99.883 },
-  "report_count": 1, "is_verified": false,
+  "report_count": 3, "source_count": 2, "is_verified": true,
   "helpers_needed": 4, "helpers_signed_up": 2
 }
 ```
@@ -135,6 +135,7 @@ Coordinates are always `{ "lat": 13.75, "lng": 100.5 }`. Leaflet takes `[lat, ln
 | `urgency` | **Colour**: critical `#7b1fa2`, high `#d32f2f`, medium `#f57c00`, low `#fbc02d` |
 | `status` | `in_progress` → e.g. dashed/lighter; `resolved` → grey (hidden by default) |
 | `helpers_signed_up` / `helpers_needed` | Badge "2 / 4 helpers" |
+| `report_count` / `source_count` / `is_verified` | "3 reports from 2 people · ✔ verified" (verified = 2+ independent people) |
 
 Filters: `&need_type=food`, `&status=open&status=in_progress` (repeatable). Without `status`,
 resolved incidents are hidden. Results are sorted biggest first (max 500).
@@ -149,6 +150,23 @@ Shelters and supply points (created by users) plus official places later.
 }
 ```
 Filters: `&center_type=shelter&center_type=supply_point`, `&status=open`, `&supply=medicine`
+
+Two kinds of places in the same endpoint:
+- **Community** (`is_official: false`): shelters and supply points created by users.
+- **Official** (`is_official: true`): ~3,000 hospitals, fire stations and police from
+  OpenStreetMap, with `source_url`. There are many, so request
+  `center_type=hospital&center_type=fire_station&center_type=police` only from zoom ≥ 10.
+
+### Nearest help
+```
+GET /centers/nearest?lat=7.0086&lng=100.4747&center_type=hospital&limit=1
+→ [ { ...CenterRead, "distance_m": 1075 } ]
+```
+Closest first, closed places skipped. Use it on the incident card ("🏥 Rajyindee Hospital · 1.1 km").
+
+### Hotlines
+`GET /hotlines` → `[{ "number": "1669", "name": "Medical emergency / ambulance", "name_local": "เจ็บป่วยฉุกเฉิน", "category": "medical", "area": "nationwide" }, ...]`.
+Show them in the report confirmation and on the incident card.
 ("where can I get medicine?").
 
 ## 5. Incident card
@@ -157,6 +175,8 @@ On marker click, load both:
 ```
 GET /incidents/{id}              → IncidentRead (full card)
 GET /incidents/{id}/volunteers   → who is going, per task (public)
+GET /incidents/{id}/reports      → report history (public)
+GET /centers/nearest?lat=&lng=&center_type=hospital&limit=1   → nearest hospital (and shelter)
 ```
 `IncidentRead` = map item fields + `summary`, `location_text`, `people_affected`, `owner_id`,
 `contact_phone`, `tasks[]`, timestamps.
@@ -180,7 +200,56 @@ Volunteer (public, never shows email or phone):
 
 ## 6. Main flows
 
-### Report an incident (logged in)
+### Report with free text + AI (main flow, login optional)
+The reporter writes in their own words (Thai / English / Russian). The AI fills in the fields.
+
+1. Pin: GPS to centre the map, the user adjusts the pin (same as below).
+2. *(Optional, recommended)* preview: let the reporter check what the AI understood:
+```
+POST /reports/preview   { "text": "น้ำท่วมถึงหน้าอก ซอย 5 มีคนติดอยู่ 4 คน ต้องการเรือด่วน" }
+→ ParsedReport
+{
+  "is_request_for_help": true,
+  "title": "Four people trapped, need a boat",
+  "summary": "Chest-deep water on Soi 5, four people trapped.",
+  "need_type": "boat", "urgency": "critical", "people_affected": 4,
+  "location_text": "ซอย 5", "language": "th",
+  "tasks": [{ "title": "Boat rescue", "role": "boat_operator", "needed_count": 2 }]
+}
+```
+   Show it as an editable form. The call takes a few seconds, so show a spinner. **503** means the AI is
+   unavailable: skip the preview and submit directly.
+3. Submit:
+```
+POST /reports
+{ "text": "<original text>", "location": { "lat": 7.0086, "lng": 100.4747 },
+  "contact_phone": "+66 81 111 2222",
+  "parsed": { ...the preview, possibly edited... } }     // omit "parsed" to let the AI parse now
+→ 201 { "status": "parsed" | "failed" | "rejected", "was_merged": false, "message": "...",
+        "parsed": {...}, "incident": IncidentRead | null }
+```
+| `status` | Meaning | Show |
+| --- | --- | --- |
+| `parsed` | Incident created | `message` + open the incident card |
+| `failed` | AI was down; incident created from the raw text with default fields | `message` + card |
+| `rejected` | Not a request for help (spam etc.); nothing on the map | `message` |
+
+If the reporter is logged in, they become the owner (can edit or resolve). Anonymous reports have no owner.
+
+**Merged reports:** if a matching incident already exists within 200 m (same kind of problem),
+the report is added to it instead: `was_merged: true`, `incident` is the existing one (now with a
+higher `report_count`, maybe `is_verified`), and `message` says so ("Someone already reported this
+nearby…"). Show the existing incident card. See `backend/README.md` → "How merging reports works".
+
+Report history on the card:
+```
+GET /incidents/{id}/reports
+→ [{ "created_at": "...", "language": "th", "urgency": "critical", "people_affected": 4,
+     "source": "ai", "status": "parsed", "summary": "Chest-deep water, four people trapped." }]
+```
+`summary` is the AI's English summary (`null` if the AI failed). Raw messages are never returned.
+
+### Report an incident with a form (logged in)
 1. Get GPS with `navigator.geolocation.getCurrentPosition` **only to centre the map** and drop a draft pin.
 2. Let the user **drag the pin / tap the map** to fix the location.
 3. Send:
@@ -199,7 +268,6 @@ POST /incidents
 }
 ```
 `tasks` is optional; empty → one "Help on site" task. The location must be inside Thailand (422 otherwise).
-(Phase 4 adds `POST /reports`: free text + pin, and the AI fills in the rest.)
 
 ### Volunteer: "I'm going"
 ```
@@ -265,7 +333,8 @@ The owner keeps it current: `PATCH /centers/{id}` `{status: "full", supplies: [.
 
 ## 8. Demo data
 
-`cd backend && make seed` loads synthetic incidents across Thailand, shelters and sign-ups.
+`cd backend && make seed` loads synthetic incidents across Thailand, shelters, sign-ups and merged
+follow-up reports (Hat Yai: 3 reports, verified). `make centers-load` loads the official places.
 Password for all accounts: `demo-password-1`.
 
 | Account | Role |
@@ -274,6 +343,4 @@ Password for all accounts: `demo-password-1`.
 | `volunteer1@civiceye.dev` … `volunteer3@civiceye.dev` | volunteers |
 
 ## 9. Coming next (backend)
-- `POST /reports`: free text (Thai / English / Russian) + pin → AI creates or merges an incident.
-- Merging duplicate reports (bigger marker, `report_count` grows, `is_verified`).
-- `GET /centers/nearest?lat=&lng=&type=hospital` and official centers data.
+- Deployment: public API URL (will be shared), Docker setup.

@@ -37,8 +37,7 @@ backend/
 │       ├── ai/                 # provider-agnostic AI layer (see "AI connectors")
 │       │   ├── connector.py    # AIConnector interface + AIConnectorError
 │       │   ├── factory.py      # get_ai_connector() picks the provider from settings
-│       │   ├── providers/      # anthropic.py, openai.py, fake.py, ... one file per provider
-│       │   └── prompts/        # prompt templates (report parsing, center extraction, dedup check)
+│       │   └── providers/      # openai_compatible.py (DeepSeek, OpenAI, ...), fake.py
 │       └── geocoder.py         # Nominatim
 ├── scripts/                    # scrape_centers.py and other one-off scripts
 ├── data/                       # centers_snapshot.json, seed data
@@ -142,6 +141,19 @@ water, boat). The owner keeps `status` (open / full / closed) and supplies up to
 (OSM, BMA) goes into the same table with another `source` and no owner, so only coordinators can edit
 it. `GET /centers?bbox=&center_type=&status=&supply=medicine` returns them for the map.
 
+## Official places and hotlines
+
+- `app/integrations/osm.py` queries the Overpass API once (`make centers-fetch`) for hospitals, fire
+  stations and police in Thailand, removes duplicates and saves `data/centers_osm_snapshot.json`
+  (with source link and retrieval date per place). `make centers-load` replaces all `source = osm`
+  rows from the snapshot; user-created places are untouched. The demo never scrapes live.
+- The snapshot is the source of truth. `make centers-export` writes DB rows (with coordinator edits)
+  back to it; every overwrite first copies the old file to `data/backups/`, and `centers-fetch`
+  refuses a result >20% smaller than the current snapshot unless `FORCE=1`.
+- `GET /centers/nearest?lat=&lng=&center_type=hospital&limit=3` uses PostGIS KNN (`<->`,
+  `order_by_nearest()` in `shared/geo.py`) and returns `distance_m`; closed places are skipped.
+- `GET /hotlines` serves `data/hotlines.json` (verify the numbers before the demo).
+
 ## Dev tools
 
 - `make seed` loads `data/demo_seed.json` (synthetic) with a demo coordinator account.
@@ -177,13 +189,19 @@ class AIConnector(Protocol):
     ) -> T: ...
 ```
 
-- `generate_structured` returns a validated Pydantic object (`ParsedReport`, `ExtractedCenter`,
-  `DuplicateCheck`). Each provider maps this to its own structured-output / JSON mode.
-- Each provider is one file in `providers/`. The `fake` provider returns deterministic results for
-  tests and offline demos, so nothing needs a network or an API key.
-- `factory.get_ai_connector()` reads `AI_PROVIDER` / `AI_MODEL` from settings and is used as a
-  FastAPI dependency. Switching model or vendor is an env change; adding a vendor is one new file.
-- Prompts live in `prompts/` and are shared by all providers.
+- `generate_structured` returns a validated Pydantic object (e.g. `ParsedReport`). Providers use
+  their JSON mode; the answer is validated against the schema.
+- **Current provider: DeepSeek** (`AI_PROVIDER=deepseek`, `AI_MODEL=deepseek-flash`, `AI_API_KEY`).
+  `providers/openai_compatible.py` works with any OpenAI-style `/chat/completions` API, so OpenAI,
+  or anything else with that API (via `AI_BASE_URL`), is an env change. A vendor with a different API =
+  one new file in `providers/` + one line in `factory.py`.
+- The `fake` provider makes no network calls: it answers with a responder registered per schema, or
+  the schema's first `examples` entry. Tests always use it (`tests/conftest.py`).
+- `factory.get_ai_connector()` is a FastAPI dependency; tests override it with
+  `app.dependency_overrides`.
+- **Prompts live in the module that uses them** (e.g. `modules/reports/prompts.py`), so
+  `integrations/ai` stays generic and never imports app modules.
+- `make ai-check text="..."` sends one text to the real provider and prints the result.
 - Provider errors are wrapped in `AIConnectorError`. Callers handle that one exception and fall back
   (store the raw report with `status = failed`).
 - Every report row stores `ai_provider` and `ai_model`, so results can be compared across models.
@@ -191,13 +209,25 @@ class AIConnector(Protocol):
 ## Report intake pipeline (`modules/reports`)
 
 ```
-text + lat/lng (pin)
-  → ai_connector.parse_report()      → ParsedReport (location_text, need_type, urgency, people_affected, tasks)
-  → ensure_in_service_area()
-  → incidents.service.find_duplicate()→ open incident, same need_type, within ~200 m
-  → merge (report_count += 1, keep the higher urgency) OR incidents.service.create_incident()
-  → incidents.service.recalculate_magnitude()
+POST /reports  {text, location (pin), contact_phone?, parsed?}
+  → ensure_in_service_area()            (before the AI call, so bad pins cost nothing)
+  → parsed given? (reporter confirmed a preview) → use it, no AI call
+    else connector.generate_structured(prompt, text, ParsedReport)
+         AIConnectorError → fallback: title = text, need_type = other, urgency = medium, status = failed
+  → not is_request_for_help → report saved as `rejected`, no incident
+  → incidents.service.create_or_merge_incident(IncidentCreate, reporter or None, ReportMeta)
+       → find_merge_target(): within 200 m, active or resolved < 24 h, same need group, closest
+       → merge_into_incident()  OR  create_incident()
+  → ReportResult { status, was_merged, message, parsed, incident }
 ```
+- `POST /reports/preview {text}` parses without saving (503 if the AI is down), so the frontend can
+  show the result for the reporter to confirm/edit and then send it back as `parsed`.
+- Both endpoints are public; a logged-in reporter becomes the incident owner, anonymous reports
+  have no owner (coordinators manage them).
+- `ParsedReport` coerces bad AI values to safe defaults (unknown need type → `other`, unknown role →
+  `general`, counts clamped), so a slightly wrong answer never loses a report.
+- The AI writes `title`, `summary` and task titles in English; `location_text` keeps the original
+  wording; the original message is kept in `reports.raw_text`.
 
 Merging and magnitude rules are in `DATA_MODEL.md`. Magnitude (0–100) drives marker size on the map.
 

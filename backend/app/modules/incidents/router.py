@@ -11,6 +11,7 @@ from app.modules.incidents.schemas import (
     IncidentCreate,
     IncidentMapItem,
     IncidentRead,
+    IncidentReportRead,
     IncidentUpdate,
     TaskCreate,
 )
@@ -44,6 +45,14 @@ async def get_incident(
     if viewer is None:
         incident = incident.model_copy(update={"contact_phone": None})
     return incident
+
+
+@router.get("/{incident_id}/reports")
+async def list_incident_reports(
+    incident_id: uuid.UUID, session: DbSession
+) -> list[IncidentReportRead]:
+    """Public report history: when, which language, AI summary. Never the raw text."""
+    return await service.list_report_history(session, incident_id)
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)

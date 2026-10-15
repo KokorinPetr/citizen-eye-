@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Report Playground</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="/dev/assets/common.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font: 14px system-ui, sans-serif; background: #f4f5f7; color: #222; }
+    header { background: #1f2937; color: #fff; padding: 10px 16px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+    header a { color: #93c5fd; }
+    main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; padding: 16px; max-width: 1400px; margin: 0 auto; }
+    @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+    section { background: #fff; border-radius: 8px; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,.12); margin-bottom: 16px; }
+    h2 { font-size: 15px; margin: 0 0 10px; }
+    label { display: block; font-size: 12px; color: #555; margin: 8px 0 3px; }
+    input, textarea, select { width: 100%; padding: 7px 8px; border: 1px solid #ccc; border-radius: 6px; font: inherit; }
+    textarea { resize: vertical; }
+    button { padding: 7px 12px; border: 0; border-radius: 6px; background: #2563eb; color: #fff; font: inherit; cursor: pointer; margin: 6px 6px 0 0; }
+    button.secondary { background: #e5e7eb; color: #222; }
+    button:disabled { opacity: .5; cursor: wait; }
+    #pin-map { height: 260px; border-radius: 6px; }
+    pre { background: #0f172a; color: #e2e8f0; padding: 10px; border-radius: 6px; overflow: auto; max-height: 520px; font-size: 12px; margin: 0; white-space: pre-wrap; word-break: break-word; }
+    .row { display: flex; gap: 8px; } .row > * { flex: 1; }
+    .muted { color: #666; font-size: 12px; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-weight: 600; font-size: 12px; }
+    .ok { background: #dcfce7; color: #166534; } .warn { background: #fef9c3; color: #854d0e; } .err { background: #fee2e2; color: #991b1b; }
+    #parsed-json { font-family: ui-monospace, monospace; font-size: 12px; min-height: 260px; }
+  </style>
+</head>
+<body>
+<header>
+  <b>Civic Eye · report playground</b>
+  <a href="/dev/map">Map</a>
+  <a href="/docs" target="_blank">API docs</a>
+  <span id="who" class="muted" style="color:#cbd5e1"></span>
+</header>
+
+<main>
+  <div>
+    <section>
+      <h2>1. Login (optional)</h2>
+      <div class="muted">Anonymous reports have no owner. Logged-in reporters own the incident.</div>
+      <div class="row">
+        <div><label>Email</label><input id="email" value="demo@civiceye.dev"></div>
+        <div><label>Password</label><input id="password" type="password" value="demo-password-1"></div>
+      </div>
+      <button id="login-btn">Log in</button>
+      <button id="logout-btn" class="secondary">Log out</button>
+    </section>
+
+    <section>
+      <h2>2. Pin</h2>
+      <div class="muted">Click the map or drag the pin. GPS only centres the map.</div>
+      <div id="pin-map" style="margin-top:6px"></div>
+      <div class="row" style="margin-top:6px">
+        <div><label>lat</label><input id="lat" type="number" step="0.000001"></div>
+        <div><label>lng</label><input id="lng" type="number" step="0.000001"></div>
+      </div>
+      <button id="gps-btn" class="secondary">Use my GPS</button>
+      <button class="secondary" data-place="13.8167,100.5612">Bangkok</button>
+      <button class="secondary" data-place="18.7883,98.9853">Chiang Mai</button>
+      <button class="secondary" data-place="20.4280,99.8830">Mae Sai</button>
+      <button class="secondary" data-place="7.0086,100.4747">Hat Yai</button>
+    </section>
+
+    <section>
+      <h2>3. Message</h2>
+      <div>
+        <button class="secondary" data-sample="th">Thai</button>
+        <button class="secondary" data-sample="en">English</button>
+        <button class="secondary" data-sample="ru">Russian</button>
+        <button class="secondary" data-sample="mixed">Mixed / slang</button>
+        <button class="secondary" data-sample="spam">Spam</button>
+        <button class="secondary" data-sample="followup">Follow-up (same place → merge)</button>
+      </div>
+      <label>Text (Thai / English / Russian)</label>
+      <textarea id="text" rows="4"></textarea>
+      <label>Contact phone (optional)</label>
+      <input id="phone" placeholder="+66 81 234 5678">
+      <div style="margin-top:6px">
+        <button id="preview-btn">Preview (AI, nothing saved)</button>
+        <button id="submit-btn">Submit (AI parses now)</button>
+      </div>
+    </section>
+  </div>
+
+  <div>
+    <section>
+      <h2>4. AI preview <span id="preview-meta" class="muted"></span></h2>
+      <div class="muted">Edit the JSON (e.g. urgency) and submit it as the confirmed version: no second AI call.</div>
+      <textarea id="parsed-json" placeholder="Click Preview…"></textarea>
+      <button id="submit-confirmed-btn" disabled title="Click Preview first">Submit confirmed preview</button>
+    </section>
+
+    <section>
+      <h2>5. Response <span id="response-meta"></span></h2>
+      <div id="response-summary" style="margin-bottom:8px"></div>
+      <pre id="response">—</pre>
+    </section>
+  </div>
+</main>
+
+<script>
+  const { escapeHtml, request, login, logout, getUser } = window.civic;
+  const $ = (id) => document.getElementById(id);
+
+  const SAMPLES = {
+    th: "น้ำท่วมถึงหน้าอกแล้วที่ซอย 5 มีคนแก่ 2 คนกับเด็ก 1 คนติดอยู่ชั้นสอง น้ำยังขึ้นเรื่อยๆ ต้องการเรือด่วน",
+    en: "Water up to my knees on Soi 12. My grandmother (80) ran out of insulin and can't walk to the main road. Please help.",
+    ru: "Вода по пояс, мы на втором этаже, нас 4 человека, кончилась питьевая вода и еда. Рядом с рынком.",
+    mixed: "help pls!! น้ำท่วม บ้านพัง 3 families need place to sleep tonight, kids sick fever",
+    spam: "Buy cheap iPhones now!!! Best price in Bangkok, call 099-999-9999",
+    followup: "Neighbour here: water at Soi 5 is still rising, now 5 people on the roof including a baby. Need a boat!",
+  };
+
+  // --- pin ---
+  const pinMap = L.map("pin-map").setView([13.8167, 100.5612], 13);
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19, attribution: "&copy; OpenStreetMap contributors",
+  }).addTo(pinMap);
+  const pin = L.marker([13.8167, 100.5612], { draggable: true }).addTo(pinMap);
+
+  function setPin(lat, lng, zoom) {
+    pin.setLatLng([lat, lng]);
+    if (zoom) pinMap.setView([lat, lng], zoom);
+    $("lat").value = lat.toFixed(6);
+    $("lng").value = lng.toFixed(6);
+  }
+  pinMap.on("click", (e) => setPin(e.latlng.lat, e.latlng.lng));
+  pin.on("dragend", () => { const p = pin.getLatLng(); setPin(p.lat, p.lng); });
+  for (const id of ["lat", "lng"]) {
+    $(id).addEventListener("change", () => setPin(Number($("lat").value), Number($("lng").value), pinMap.getZoom()));
+  }
+  document.querySelectorAll("[data-place]").forEach((button) => button.addEventListener("click", () => {
+    const [lat, lng] = button.dataset.place.split(",").map(Number);
+    setPin(lat, lng, 14);
+  }));
+  $("gps-btn").addEventListener("click", () => navigator.geolocation?.getCurrentPosition(
+    (pos) => setPin(pos.coords.latitude, pos.coords.longitude, 16),
+    (err) => alertBox(`GPS error: ${err.message}`),
+  ));
+  setPin(13.8167, 100.5612);
+
+  // --- login ---
+  function renderUser() {
+    const user = getUser();
+    $("who").textContent = user ? `logged in: ${user.full_name} (${user.role})` : "anonymous";
+  }
+  $("login-btn").addEventListener("click", async () => {
+    const result = await login($("email").value, $("password").value);
+    showResponse(result);
+    renderUser();
+  });
+  $("logout-btn").addEventListener("click", () => { logout(); renderUser(); });
+  renderUser();
+
+  // --- report ---
+  // The preview belongs to one text: changing the text discards it.
+  function clearPreview() {
+    $("parsed-json").value = "";
+    $("preview-meta").textContent = "";
+    updateConfirmButton();
+  }
+  function updateConfirmButton() {
+    $("submit-confirmed-btn").disabled = !$("parsed-json").value.trim();
+  }
+  document.querySelectorAll("[data-sample]").forEach((button) =>
+    button.addEventListener("click", () => { $("text").value = SAMPLES[button.dataset.sample]; clearPreview(); }));
+  $("text").addEventListener("input", clearPreview);
+  $("parsed-json").addEventListener("input", updateConfirmButton);
+  $("text").value = SAMPLES.th;
+
+  function reportBody(parsed) {
+    const body = {
+      text: $("text").value,
+      location: { lat: Number($("lat").value), lng: Number($("lng").value) },
+    };
+    if ($("phone").value.trim()) body.contact_phone = $("phone").value.trim();
+    if (parsed) body.parsed = parsed;
+    return body;
+  }
+
+  async function withBusy(button, action) {
+    const buttons = document.querySelectorAll("button");
+    buttons.forEach((b) => { b.disabled = true; });
+    const label = button.textContent;
+    button.textContent = "Waiting…";
+    try { await action(); } finally {
+      button.textContent = label;
+      buttons.forEach((b) => { b.disabled = false; });
+      updateConfirmButton();
+    }
+  }
+
+  $("preview-btn").addEventListener("click", (e) => withBusy(e.target, async () => {
+    const result = await request("POST", "/reports/preview", { text: $("text").value });
+    $("preview-meta").textContent = `· ${result.status} · ${result.ms} ms`;
+    $("parsed-json").value = result.ok ? JSON.stringify(result.data, null, 2) : "";
+    showResponse(result);
+  }));
+
+  $("submit-btn").addEventListener("click", (e) => withBusy(e.target, async () => {
+    showResponse(await request("POST", "/reports", reportBody(null)));
+  }));
+
+  $("submit-confirmed-btn").addEventListener("click", (e) => withBusy(e.target, async () => {
+    let parsed;
+    try { parsed = JSON.parse($("parsed-json").value); } catch (error) {
+      return alertBox(`Preview JSON is invalid: ${error.message}`);
+    }
+    showResponse(await request("POST", "/reports", reportBody(parsed)));
+  }));
+
+  // --- output ---
+  /** A problem in this page (nothing was sent): clear the previous response so it can't be misread. */
+  function alertBox(message) {
+    $("response-meta").innerHTML = '<span class="badge err">not sent</span>';
+    $("response-summary").innerHTML = `<span class="badge err">${escapeHtml(message)}</span>`;
+    $("response").textContent = "—";
+  }
+
+  function showResponse(result) {
+    const cls = result.ok ? "ok" : result.status >= 500 ? "err" : "warn";
+    $("response-meta").innerHTML = `<span class="badge ${cls}">HTTP ${result.status}</span> <span class="muted">${result.ms} ms</span>`;
+    $("response").textContent = JSON.stringify(result.data, null, 2);
+
+    const data = result.data || {};
+    let summary = "";
+    if (data.status && "incident" in data) {  // ReportResult
+      const statusClass = { parsed: "ok", failed: "warn", rejected: "err" }[data.status];
+      summary = `<span class="badge ${statusClass}">${escapeHtml(data.status)}</span>` +
+        (data.was_merged ? ' <span class="badge warn">merged</span>' : "") + ` ${escapeHtml(data.message)}`;
+      if (data.incident) {
+        const i = data.incident;
+        summary += `<br><b>${escapeHtml(i.title)}</b> · ${escapeHtml(i.need_type)} · ${escapeHtml(i.urgency)}
+          · magnitude ${i.magnitude} (level ${i.magnitude_level}) · helpers ${i.helpers_signed_up}/${i.helpers_needed}
+          <br>${i.report_count} reports from ${i.source_count} ${i.source_count === 1 ? "person" : "people"}${i.is_verified ? " · ✔ verified" : ""}
+          <br><a href="/dev/map?lat=${i.location.lat}&lng=${i.location.lng}&zoom=15" target="_blank">Open on the map →</a>`;
+      }
+    } else if (data.error) {
+      summary = `<span class="badge err">${escapeHtml(data.error.code)}</span> ${escapeHtml(data.error.message)}`;
+    }
+    $("response-summary").innerHTML = summary;
+  }
+</script>
+</body>
+</html>

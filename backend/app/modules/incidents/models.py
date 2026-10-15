@@ -11,6 +11,7 @@ from app.modules.incidents.enums import (
     IncidentStatus,
     NeedType,
     ReportSource,
+    ReportStatus,
     TaskRole,
     TaskStatus,
     Urgency,
@@ -37,6 +38,8 @@ class Incident(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     people_affected: Mapped[int | None] = mapped_column(Integer)
     contact_phone: Mapped[str | None] = mapped_column(String(32))
     report_count: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
+    # Independent reporters: each user once, all anonymous reports together once.
+    source_count: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     owner_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), index=True
@@ -97,6 +100,14 @@ class IncidentReport(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ForeignKey("users.id", ondelete="SET NULL")
     )
     source: Mapped[ReportSource] = mapped_column(pg_enum(ReportSource, "report_source"))
+    status: Mapped[ReportStatus] = mapped_column(
+        pg_enum(ReportStatus, "report_status"),
+        default=ReportStatus.PARSED,
+        server_default=ReportStatus.PARSED.value,
+    )
+    language: Mapped[str | None] = mapped_column(String(8))
+    ai_provider: Mapped[str | None] = mapped_column(String(32))
+    ai_model: Mapped[str | None] = mapped_column(String(64))
     raw_text: Mapped[str] = mapped_column(Text)
     urgency: Mapped[Urgency] = mapped_column(pg_enum(Urgency, "urgency"))
     people_affected: Mapped[int | None] = mapped_column(Integer)

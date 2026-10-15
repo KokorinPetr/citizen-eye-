@@ -1,9 +1,11 @@
 import uuid
 from collections.abc import Sequence
+from datetime import timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.base_model import utc_now
+from app.core.config import get_settings
 from app.core.exceptions import ConflictError, NotFoundError
 from app.modules.auth.models import User
 from app.modules.auth.permissions import ensure_owner_or_manager
@@ -12,14 +14,22 @@ from app.modules.incidents.enums import (
     ACTIVE_STATUSES,
     IncidentStatus,
     NeedType,
-    ReportSource,
+    ReportStatus,
     TaskRole,
     TaskStatus,
+    Urgency,
 )
 from app.modules.incidents.magnitude import calculate_incident_magnitude, calculate_report_magnitude
+from app.modules.incidents.merge_rules import matching_need_types, max_optional, max_urgency
 from app.modules.incidents.models import Incident, IncidentReport, IncidentTask
-from app.modules.incidents.schemas import IncidentCreate, IncidentUpdate, TaskCreate
-from app.shared.geo import BBox, ensure_in_service_area, to_db_point
+from app.modules.incidents.schemas import (
+    IncidentCreate,
+    IncidentReportRead,
+    IncidentUpdate,
+    ReportMeta,
+    TaskCreate,
+)
+from app.shared.geo import BBox, GeoPoint, ensure_in_service_area, to_db_point
 
 DEFAULT_TASK = TaskCreate(title="Help on site", role=TaskRole.GENERAL, needed_count=1)
 
@@ -46,11 +56,15 @@ async def list_incidents(
 async def create_incident(
     session: AsyncSession,
     data: IncidentCreate,
-    owner: User,
-    source: ReportSource = ReportSource.MANUAL,
+    owner: User | None,
+    meta: ReportMeta | None = None,
 ) -> Incident:
-    """Manual creation. Also stored as a report, so magnitude works the same for every incident."""
+    """Create an incident and its first report (so magnitude works the same for every incident).
+
+    `owner` is None for anonymous reports: then only coordinators can manage the incident.
+    """
     ensure_in_service_area(data.location)
+    meta = meta or ReportMeta()
     location = to_db_point(data.location)
     incident = await repository.add_incident(
         session,
@@ -63,26 +77,131 @@ async def create_incident(
             location_text=data.location_text,
             people_affected=data.people_affected,
             contact_phone=data.contact_phone,
-            owner_id=owner.id,
+            owner_id=owner.id if owner else None,
             tasks=[IncidentTask(**task.model_dump()) for task in data.tasks or [DEFAULT_TASK]],
         ),
     )
-    await repository.add_report(
+    await add_report(
         session,
-        IncidentReport(
-            incident_id=incident.id,
-            reporter_id=owner.id,
-            source=source,
-            raw_text=data.summary or data.title,
-            urgency=data.urgency,
-            people_affected=data.people_affected,
-            magnitude=calculate_report_magnitude(data.urgency, data.people_affected),
-            location=location,
-        ),
+        meta.model_copy(update={"raw_text": meta.raw_text or data.summary or data.title}),
+        data.location,
+        data.urgency,
+        data.people_affected,
+        reporter=owner,
+        incident=incident,
     )
-    await recalculate_magnitude(session, incident)
+    await recalculate_incident_stats(session, incident)
     await session.commit()
     return incident
+
+
+async def create_or_merge_incident(
+    session: AsyncSession, data: IncidentCreate, reporter: User | None, meta: ReportMeta
+) -> tuple[Incident, bool]:
+    """Join a matching incident nearby, or create a new one. Returns (incident, was_merged)."""
+    ensure_in_service_area(data.location)
+    target = await find_merge_target(session, data)
+    if target is None:
+        return await create_incident(session, data, reporter, meta), False
+    await merge_into_incident(session, target, data, reporter, meta)
+    return target, True
+
+
+async def find_merge_target(session: AsyncSession, data: IncidentCreate) -> Incident | None:
+    settings = get_settings()
+    return await repository.find_merge_candidate(
+        session,
+        data.location,
+        matching_need_types(data.need_type),
+        radius_m=settings.dedup_radius_m,
+        resolved_since=utc_now() - timedelta(hours=settings.reopen_window_hours),
+    )
+
+
+async def merge_into_incident(
+    session: AsyncSession,
+    incident: Incident,
+    data: IncidentCreate,
+    reporter: User | None,
+    meta: ReportMeta,
+) -> None:
+    """Add a report to an existing incident: reopen it if needed and combine the details."""
+    if incident.status == IncidentStatus.RESOLVED:
+        reset_to_open(incident)
+    incident.urgency = max_urgency(incident.urgency, data.urgency)
+    incident.people_affected = max_optional(incident.people_affected, data.people_affected)
+    incident.contact_phone = incident.contact_phone or data.contact_phone
+    incident.location_text = incident.location_text or data.location_text
+    incident.last_report_at = utc_now()
+    add_missing_tasks(incident, data.tasks)
+
+    await add_report(
+        session,
+        meta.model_copy(update={"raw_text": meta.raw_text or data.summary or data.title}),
+        data.location,
+        data.urgency,
+        data.people_affected,
+        reporter=reporter,
+        incident=incident,
+    )
+    await session.flush()
+    await recalculate_incident_stats(session, incident)
+    sync_incident_status(incident)
+    await session.commit()
+
+
+def add_missing_tasks(incident: Incident, tasks: list[TaskCreate]) -> None:
+    """Add tasks whose role is not already needed, so merged reports don't duplicate work."""
+    active_roles = {task.role for task in incident.tasks if task.status != TaskStatus.DONE}
+    for task in tasks:
+        if task.role not in active_roles:
+            incident.tasks.append(IncidentTask(**task.model_dump()))
+            active_roles.add(task.role)
+
+
+async def list_report_history(
+    session: AsyncSession, incident_id: uuid.UUID
+) -> list[IncidentReportRead]:
+    await get_incident_or_raise(session, incident_id)
+    reports = await repository.list_incident_reports(session, incident_id)
+    return [IncidentReportRead.from_report(report) for report in reports]
+
+
+async def save_rejected_report(
+    session: AsyncSession,
+    meta: ReportMeta,
+    location: GeoPoint,
+    urgency: Urgency,
+    reporter: User | None,
+) -> None:
+    """Keep reports that are not requests for help (for review), without an incident."""
+    rejected = meta.model_copy(update={"status": ReportStatus.REJECTED})
+    await add_report(session, rejected, location, urgency, None, reporter=reporter, incident=None)
+    await session.commit()
+
+
+async def add_report(
+    session: AsyncSession,
+    meta: ReportMeta,
+    location: GeoPoint,
+    urgency: Urgency,
+    people_affected: int | None,
+    *,
+    reporter: User | None,
+    incident: Incident | None,
+) -> IncidentReport:
+    return await repository.add_report(
+        session,
+        IncidentReport(
+            incident_id=incident.id if incident else None,
+            reporter_id=reporter.id if reporter else None,
+            urgency=urgency,
+            people_affected=people_affected,
+            magnitude=calculate_report_magnitude(urgency, people_affected),
+            location=to_db_point(location),
+            **meta.model_dump(),
+        ),
+    )
 
 
 async def update_incident(
@@ -120,14 +239,19 @@ async def reopen_incident(session: AsyncSession, incident_id: uuid.UUID, user: U
     if incident.status != IncidentStatus.RESOLVED:
         raise ConflictError("Only resolved incidents can be reopened")
 
+    reset_to_open(incident)
+    sync_incident_status(incident)
+    await session.commit()
+    return incident
+
+
+def reset_to_open(incident: Incident) -> None:
+    """Reopen a resolved incident: done tasks become open again."""
     incident.status = IncidentStatus.OPEN
     incident.resolved_at = None
     for task in incident.tasks:
         if task.status == TaskStatus.DONE:
             task.status = TaskStatus.OPEN
-    sync_incident_status(incident)
-    await session.commit()
-    return incident
 
 
 async def add_task(
@@ -192,11 +316,16 @@ async def delete_incident(session: AsyncSession, incident_id: uuid.UUID, user: U
     await session.commit()
 
 
-async def recalculate_magnitude(session: AsyncSession, incident: Incident) -> None:
-    average, report_count = await repository.get_report_stats(session, incident.id)
-    incident.report_count = max(report_count, 1)
+async def recalculate_incident_stats(session: AsyncSession, incident: Incident) -> None:
+    """Report count, independent sources, verified flag and magnitude, from the reports table."""
+    stats = await repository.get_report_stats(session, incident.id)
+    incident.report_count = max(stats.report_count, 1)
+    incident.source_count = max(stats.source_count, 1)
+    incident.is_verified = (
+        incident.is_verified or incident.source_count >= get_settings().verified_min_sources
+    )
     incident.magnitude = calculate_incident_magnitude(
-        average, incident.report_count, incident.is_verified
+        stats.average_magnitude, incident.source_count, incident.is_verified
     )
 
 

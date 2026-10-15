@@ -20,9 +20,9 @@ def test_incident_magnitude_is_average_plus_bonuses() -> None:
     ]
     average = sum(reports) / len(reports)  # 47.67
 
-    assert calculate_incident_magnitude(average, report_count=3, is_verified=True) == 69
-    assert calculate_incident_magnitude(average, report_count=1, is_verified=False) == 48
-    assert calculate_incident_magnitude(90, report_count=10, is_verified=True) == 100
+    assert calculate_incident_magnitude(average, source_count=3, is_verified=True) == 69
+    assert calculate_incident_magnitude(average, source_count=1, is_verified=False) == 48
+    assert calculate_incident_magnitude(90, source_count=10, is_verified=True) == 100
 
 
 def test_magnitude_level() -> None:

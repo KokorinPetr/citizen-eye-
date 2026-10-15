@@ -5,6 +5,7 @@ from dotenv import dotenv_values
 # Must run before the app is imported: point the app at the test database.
 _env = dotenv_values(".env")
 os.environ["ENVIRONMENT"] = "test"
+os.environ["AI_PROVIDER"] = "fake"  # tests never call a real AI provider
 os.environ["DATABASE_URL"] = os.environ.get("TEST_DATABASE_URL") or _env.get(
     "TEST_DATABASE_URL", "postgresql+asyncpg://civic_eye:civic_eye@localhost:5432/civic_eye_test"
 )

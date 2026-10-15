@@ -43,6 +43,12 @@ class TaskStatus(StrEnum):
     DONE = "done"
 
 
+class ReportStatus(StrEnum):
+    PARSED = "parsed"  # turned into / merged into an incident
+    FAILED = "failed"  # AI failed; incident created from the raw text with defaults
+    REJECTED = "rejected"  # AI says it is not a request for help; no incident
+
+
 class ReportSource(StrEnum):
     MANUAL = "manual"
     AI = "ai"

@@ -314,5 +314,29 @@
       "volunteer": 2,
       "task": 0
     }
+  ],
+  "_followups_note": "Extra reports merged into seeded incidents (shows bigger markers + verified). incident/volunteer are indexes.",
+  "followup_reports": [
+    {
+      "incident": 6,
+      "volunteer": 0,
+      "urgency": "critical",
+      "people_affected": 20,
+      "summary": "Water still rising near the canal, more families on rooftops."
+    },
+    {
+      "incident": 6,
+      "volunteer": 1,
+      "urgency": "critical",
+      "people_affected": 18,
+      "summary": "Elderly man on a roof next to the canal, needs a boat now."
+    },
+    {
+      "incident": 0,
+      "volunteer": 2,
+      "urgency": "critical",
+      "people_affected": 6,
+      "summary": "Neighbour confirms: family still on the second floor."
+    }
   ]
 }

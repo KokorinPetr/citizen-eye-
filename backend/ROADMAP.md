@@ -46,28 +46,36 @@ Tick items `[x]` as they are done. Riskier work comes first. See `ARCHITECTURE.m
 - [x] Public: `GET /incidents/{id}/volunteers` (who is going, per task), `GET /users/{id}/signups`
 
 ## Phase 4 — AI report intake
-- [ ] `integrations/ai/connector.py`: `AIConnector` protocol + `AIConnectorError`
-- [ ] `integrations/ai/factory.py` + `fake` provider (tests/offline) + first real provider
-- [ ] `ParsedReport` schema + report-parsing prompt; test with Thai / English / Russian samples
-- [ ] `POST /reports` (public, text + pin): parse → create incident (or merge, Phase 5)
-- [ ] Fallback when the AI call fails (store raw report with `status = failed`)
+- [x] `integrations/ai/connector.py`: `AIConnector` protocol + `AIConnectorError`
+- [x] `integrations/ai/factory.py` + `fake` provider (tests/offline) + DeepSeek via `openai_compatible.py`
+- [x] `ParsedReport` schema (coerces bad AI values) + report-parsing prompt
+- [ ] Check with the real DeepSeek key: Thai / English / Russian samples (`make ai-check`)
+- [x] `POST /reports` (public, text + pin): parse → create incident (or merge, Phase 5)
+- [x] Fallback when the AI call fails (incident from raw text, report `status = failed`); `rejected` for non-requests
+- [x] `POST /reports/preview` (parse without saving) + submit with confirmed `parsed`
+- [x] `make ai-check text="..."` to try the real provider
+- [x] Report playground at `/dev/report`
 
 ## Phase 5 — Deduplication
-- [ ] `incidents.service.find_duplicate()` (same need type, active or resolved < 24 h, within N meters)
-- [ ] Merging into a resolved incident reopens it
-- [ ] Merge: link report, `report_count += 1`, raise urgency, add missing task roles, recalculate magnitude
-- [ ] Optional AI check "same situation?" for different need types
-- [ ] `verified` flag after a 2nd independent report or volunteer confirmation
+- [x] `find_merge_target()`: same need **group**, active or resolved < 24 h, within 200 m, closest
+- [x] Merging into a resolved incident reopens it
+- [x] Merge: link report, `report_count += 1`, raise urgency, add missing task roles, recalculate magnitude
+- [x] Need groups instead of an extra AI call (rescue / health / supplies / shelter; `other` matches all)
+- [x] Magnitude bonus per independent source (anti-inflation) + `is_verified` at 2 sources
+- [x] `GET /incidents/{id}/reports` public history (AI summaries, never raw text)
+- [x] Seed follow-up reports; dev pages show merges, sources, verified, history
 
 ## Phase 6 — Emergency centers
 - [x] `centers` model + migration (user-created shelters / supply points with supplies)
 - [x] `POST/PATCH/DELETE /centers` for users (owner / coordinator)
-- [ ] `data/centers_snapshot.json` (OSM Overpass + hand-entered hotlines)
-- [ ] `scripts/scrape_centers.py` (fetch → AI extract → geocode → snapshot)
-- [ ] Loader from snapshot into DB
+- [x] `data/centers_osm_snapshot.json` (~3,000 hospitals / fire / police via Overpass, deduplicated) + `data/hotlines.json`
+- [x] `scripts/import_osm_centers.py` (`make centers-fetch` / `make centers-load`)
+- [x] Loader from snapshot into DB (replaces OSM rows only)
+- [x] `make centers-export` (DB → snapshot, keeps edits), backups before overwrite, partial-fetch guard
 - [x] `GET /centers` (type, bbox, status, supply), `GET /centers/{id}`
-- [ ] `GET /centers/nearest`
-- [ ] Attach nearest shelter/hospital + hotline to the incident card
+- [x] `GET /centers/nearest` (PostGIS KNN, distance) + `GET /hotlines`
+- [x] Nearest hospital / shelter on the incident card (frontend calls `/centers/nearest`; dev map shows it)
+- [ ] Later: BMA shelter data (check floodsupport.bangkok.go.th for a JSON feed)
 
 ## Phase 7 — Demo and deploy
 - [x] `make seed` + realistic demo data across Thailand (`data/demo_seed.json`, synthetic)

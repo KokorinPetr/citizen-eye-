@@ -82,6 +82,11 @@ def distance_meters(column: Any, point: GeoPoint) -> ColumnElement[float]:
     return func.ST_Distance(column, _as_geography(point))
 
 
+def order_by_nearest(column: Any, point: GeoPoint) -> ColumnElement[Any]:
+    """KNN ordering (`<->`), uses the GiST index. Pair with `.limit()`."""
+    return column.op("<->")(_as_geography(point))
+
+
 def ensure_in_service_area(point: GeoPoint) -> None:
     min_lng, min_lat, max_lng, max_lat = get_settings().service_area_bbox
     service_area = BBox(min_lng=min_lng, min_lat=min_lat, max_lng=max_lng, max_lat=max_lat)

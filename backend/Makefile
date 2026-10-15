@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := help
-.PHONY: help install env db-up db-down db-reset db-logs db-shell migrate migration downgrade seed run dev test lint format check
+.PHONY: help install env db-up db-down db-reset db-logs db-shell migrate migration downgrade seed centers-fetch centers-load centers-export ai-check run dev test lint format check
 
 PORT ?= 8000
 
@@ -42,8 +42,20 @@ downgrade: ## Roll back the last migration
 seed: ## Load synthetic demo incidents + shelters (data/demo_seed.json), safe to re-run
 	uv run python -m scripts.seed_demo
 
+centers-fetch: ## Download hospitals / fire stations / police from OSM into the snapshot (backs up the old one)
+	uv run python -m scripts.import_osm_centers fetch
+
+centers-load: ## Load the OSM snapshot into the database (no network)
+	uv run python -m scripts.import_osm_centers load
+
+centers-export: ## Save OSM places from the database (with edits) back to the snapshot
+	uv run python -m scripts.import_osm_centers export
+
+ai-check: ## Parse one text with the real AI provider: make ai-check text="..."
+	uv run python -m scripts.try_ai "$(text)"
+
 run: ## Run the API with auto-reload (default port 8000, override: make run PORT=8001)
-	uv run uvicorn app.main:app --reload --port $(PORT)
+	uv run uvicorn app.main:app --reload --reload-include .env --port $(PORT)
 
 dev: env install db-up migrate run ## One command: .env + deps + DB + migrations + API
 

@@ -58,3 +58,32 @@ class CenterRead(BaseModel):
     @property
     def is_official(self) -> bool:
         return self.source in OFFICIAL_SOURCES
+
+
+class CenterNearby(CenterRead):
+    distance_m: int = Field(description="Straight-line distance in meters")
+
+
+class CenterImport(BaseModel):
+    """An official place from an import (OSM, BMA, ...). No owner; phone is free text."""
+
+    name: str = Field(min_length=1, max_length=200)
+    description: str = ""
+    center_type: CenterType
+    status: CenterStatus = CenterStatus.UNKNOWN
+    location: GeoPoint
+    address: str | None = Field(default=None, max_length=300)
+    phone: str | None = Field(default=None, max_length=32)
+    capacity: int | None = None
+    supplies: list[NeedType] = Field(default_factory=list)
+    source: CenterSource
+    source_url: str = Field(max_length=500)
+    retrieved_at: datetime
+
+
+class Hotline(BaseModel):
+    number: str
+    name: str
+    name_local: str | None = None
+    category: str
+    area: str = Field(description='"nationwide" or a region, e.g. "Bangkok"')

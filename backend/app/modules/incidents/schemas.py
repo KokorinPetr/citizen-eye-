@@ -1,9 +1,18 @@
 import uuid
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
-from app.modules.incidents.enums import IncidentStatus, NeedType, TaskRole, TaskStatus, Urgency
+from app.modules.incidents.enums import (
+    IncidentStatus,
+    NeedType,
+    ReportSource,
+    ReportStatus,
+    TaskRole,
+    TaskStatus,
+    Urgency,
+)
 from app.modules.incidents.magnitude import get_magnitude_level
 from app.shared.geo import DbPoint, GeoPoint
 from app.shared.types import PhoneNumber
@@ -49,6 +58,18 @@ class IncidentCreate(BaseModel):
     )
 
 
+class ReportMeta(BaseModel):
+    """How the report behind an incident was produced (stored in the `reports` table)."""
+
+    source: ReportSource = ReportSource.MANUAL
+    status: ReportStatus = ReportStatus.PARSED
+    raw_text: str | None = None  # default: the incident summary or title
+    language: str | None = None
+    ai_provider: str | None = None
+    ai_model: str | None = None
+    parsed_data: dict[str, Any] | None = None
+
+
 class IncidentUpdate(BaseModel):
     """Details the owner can fix. Urgency and magnitude come from reports, not from edits."""
 
@@ -73,6 +94,7 @@ class IncidentMapItem(BaseModel):
     magnitude: int
     location: DbPoint
     report_count: int
+    source_count: int = Field(description="Independent reporters (anonymous reports count once)")
     is_verified: bool
     helpers_needed: int = Field(description="For tasks that are not done yet")
     helpers_signed_up: int
@@ -96,3 +118,35 @@ class IncidentRead(IncidentMapItem):
     resolved_at: datetime | None
     created_at: datetime
     updated_at: datetime
+
+
+class IncidentReportRead(BaseModel):
+    """Public report history on the incident card. Never the raw text or a phone number."""
+
+    id: uuid.UUID
+    created_at: datetime
+    source: ReportSource
+    status: ReportStatus
+    language: str | None
+    urgency: Urgency
+    people_affected: int | None
+    summary: str | None = Field(description="English summary from the AI; null if not parsed")
+
+    @classmethod
+    def from_report(cls, report: Any) -> "IncidentReportRead":
+        if report.source == ReportSource.AI and report.status == ReportStatus.PARSED:
+            summary = (report.parsed_data or {}).get("summary") or None
+        elif report.source in (ReportSource.MANUAL, ReportSource.SEED):
+            summary = report.raw_text  # typed by the creator as the public summary
+        else:
+            summary = None  # AI failed: the raw text may contain private details
+        return cls(
+            id=report.id,
+            created_at=report.created_at,
+            source=report.source,
+            status=report.status,
+            language=report.language,
+            urgency=report.urgency,
+            people_affected=report.people_affected,
+            summary=summary,
+        )

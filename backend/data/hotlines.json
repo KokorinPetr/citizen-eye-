@@ -1,0 +1,11 @@
+{
+  "_note": "Verify every number by phone/official site before the demo (project brief). Served by GET /hotlines.",
+  "hotlines": [
+    {"number": "191", "name": "Police / general emergency", "name_local": "แจ้งเหตุด่วนเหตุร้าย", "category": "police", "area": "nationwide"},
+    {"number": "199", "name": "Fire and rescue", "name_local": "แจ้งเหตุไฟไหม้ ดับเพลิง", "category": "fire", "area": "nationwide"},
+    {"number": "1669", "name": "Medical emergency / ambulance", "name_local": "เจ็บป่วยฉุกเฉิน", "category": "medical", "area": "nationwide"},
+    {"number": "1784", "name": "Department of Disaster Prevention and Mitigation", "name_local": "กรมป้องกันและบรรเทาสาธารณภัย", "category": "disaster", "area": "nationwide"},
+    {"number": "1155", "name": "Tourist police", "name_local": "ตำรวจท่องเที่ยว", "category": "police", "area": "nationwide"},
+    {"number": "1555", "name": "Bangkok Metropolitan Administration", "name_local": "กรุงเทพมหานคร", "category": "city", "area": "Bangkok"}
+  ]
+}

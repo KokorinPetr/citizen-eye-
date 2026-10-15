@@ -21,12 +21,16 @@ def calculate_report_magnitude(urgency: Urgency, people_affected: int | None) ->
 
 
 def calculate_incident_magnitude(
-    average_report_magnitude: float, report_count: int, is_verified: bool
+    average_report_magnitude: float, source_count: int, is_verified: bool
 ) -> int:
-    """Average of the merged reports + a bonus for every confirming report (+ verified bonus)."""
+    """Average of the merged reports + a bonus per extra *independent source* (+ verified bonus).
+
+    Counting sources, not reports, means one person sending many reports can't inflate it.
+    """
     settings = get_settings()
     report_bonus = min(
-        settings.magnitude_report_bonus * (report_count - 1), settings.magnitude_report_bonus_max
+        settings.magnitude_report_bonus * (max(source_count, 1) - 1),
+        settings.magnitude_report_bonus_max,
     )
     verified_bonus = settings.magnitude_verified_bonus if is_verified else 0
     return clamp_magnitude(average_report_magnitude + report_bonus + verified_bonus)
