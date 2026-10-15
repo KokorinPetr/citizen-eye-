@@ -97,6 +97,7 @@ Tick items `[x]` as they are done. Riskier work comes first. See `ARCHITECTURE.m
 ## Phase 7 — Demo and deploy
 - [x] `make seed` + realistic demo data across Thailand (`data/demo_seed.json`, synthetic)
 - [x] Dev map at `/dev/map`
+- [x] `make seed-bangkok`: busy synthetic Bangkok for testing crowded maps
 - [x] Dockerfile for the backend; `docker compose up` runs API + DB (migrations on start, non-root, `make docker-*`)
 - [x] Hosted Postgres URLs (Neon `sslmode`, `postgres://`) normalized for asyncpg
 - [ ] Deploy (Render/Railway + Supabase/Neon), env vars, CORS origins

@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := help
-.PHONY: docker-up docker-down docker-logs docker-seed help install env db-up db-down db-reset db-logs db-shell migrate migration downgrade seed centers-fetch centers-load centers-export ai-check run dev test lint format check
+.PHONY: docker-up docker-down docker-logs docker-seed help install env db-up db-down db-reset db-logs db-shell migrate migration downgrade seed seed-small seed-bangkok centers-fetch centers-load centers-export ai-check run dev test lint format check
 
 PORT ?= 8000
 
@@ -39,8 +39,13 @@ migration: db-up ## Autogenerate a migration: make migration m="add incidents"
 downgrade: db-up ## Roll back the last migration
 	uv run alembic downgrade -1
 
-seed: db-up ## Load synthetic demo incidents + shelters (data/demo_seed.json), safe to re-run
+seed: seed-small seed-bangkok centers-load ## Full demo: Thailand demo + busy Bangkok + official places (safe to re-run)
+
+seed-small: db-up ## Only the small demo set (data/demo_seed.json), safe to re-run
 	uv run python -m scripts.seed_demo
+
+seed-bangkok: db-up ## Lots of synthetic Bangkok data (70 reports, 40 posts…) to see a busy map, safe to re-run
+	uv run python -m scripts.seed_bangkok
 
 centers-fetch: ## Download hospitals / fire stations / police from OSM into the snapshot (backs up the old one)
 	uv run python -m scripts.import_osm_centers fetch

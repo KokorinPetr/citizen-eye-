@@ -1,0 +1,16 @@
+{
+  "name": "Civic Eye",
+  "short_name": "Civic Eye",
+  "description": "See what help is needed near you, ask for help, and help your neighbours.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#EEF5EE",
+  "theme_color": "#2F8F57",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}

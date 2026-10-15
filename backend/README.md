@@ -91,6 +91,7 @@ Stop: `Ctrl+C`, then `docker compose down`.
 ```bash
 make seed           # synthetic incidents across Thailand, shelters, volunteers, merged follow-up reports
 make centers-load   # ~3,000 official hospitals / fire stations / police from the OSM snapshot
+make seed-bangkok   # optional: a busy Bangkok (70 reports, 40 posts, 15 shelters) to test a crowded map
 make run            # then open http://localhost:8000/dev/map
 ```
 

@@ -1,0 +1,11 @@
+.screen {
+  position: absolute;
+  inset: 0;
+}
+
+.map {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-map);
+  background: var(--blue-50);
+}

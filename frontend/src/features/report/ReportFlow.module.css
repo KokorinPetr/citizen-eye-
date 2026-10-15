@@ -1,0 +1,38 @@
+.form {
+  display: grid;
+  gap: var(--space-5);
+  padding: var(--space-5);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--elevation-1);
+}
+
+.tasks {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.task {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--surface-container-low);
+}
+
+.result {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-3);
+  padding: var(--space-8) 0 var(--space-4);
+  text-align: center;
+}
+
+.resultEmoji {
+  font-size: 3rem;
+}
+
+.resultTitle {
+  font-size: var(--text-lg);
+}

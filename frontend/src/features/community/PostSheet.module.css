@@ -1,0 +1,41 @@
+.reward {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--green-50);
+  font-size: var(--text-md);
+  font-weight: 700;
+  color: var(--green-700);
+}
+
+.rewardNote {
+  font-size: var(--text-sm);
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.details {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
+}
+
+.detailRow {
+  display: contents;
+}
+
+.details dt {
+  color: var(--text-muted);
+  text-transform: capitalize;
+}
+
+.details dd {
+  margin: 0;
+}
+
+.description {
+  max-width: 60ch;
+}

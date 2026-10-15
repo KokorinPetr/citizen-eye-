@@ -1,0 +1,55 @@
+# Production on one server, behind Cloudflare. Use via the root Makefile: make prod-up
+# Settings and secrets: .env.prod (copy from deploy/.env.prod.example, never commit it).
+#
+#   Cloudflare ──► :80 / :443 web (nginx: app + /api proxy) ──► api ──► db
+#   Only the web container is reachable from outside.
+name: civic-eye-prod
+
+services:
+  db:
+    image: imresamu/postgis:17-3.5
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: civic_eye
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env.prod}
+      POSTGRES_DB: civic_eye
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U civic_eye -d civic_eye"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env.prod
+    environment:
+      ENVIRONMENT: production # turns off /dev pages
+      ROOT_PATH: /api # served at https://<domain>/api (docs: /api/docs)
+      DATABASE_URL: postgresql+asyncpg://civic_eye:${POSTGRES_PASSWORD}@db:5432/civic_eye
+      CORS_ORIGINS: '["https://${DOMAIN:?set DOMAIN in .env.prod}"]'
+
+  web:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: /api # same origin: no CORS, works with any domain
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    volumes:
+      # Cloudflare Origin Certificate for "Full (strict)": origin.pem + origin.key.
+      # Empty folder → HTTP only (Cloudflare "Flexible").
+      - ${CERTS_DIR:-./deploy/certs}:/etc/nginx/certs:ro
+
+volumes:
+  postgres_data:

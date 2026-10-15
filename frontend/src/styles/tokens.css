@@ -1,0 +1,88 @@
+/* Design tokens. The only place colours and sizes are defined (see ARCHITECTURE.md). */
+:root {
+  /* Green: primary */
+  --green-50: #eef5ee; /* Rice field: app background */
+  --green-100: #dcebdd;
+  --green-200: #bcd9c1;
+  --green-600: #2f8f57; /* Paddy green: primary actions */
+  --green-700: #257447;
+  --green-900: #1e3a2b; /* Leaf ink: text */
+
+  /* Blue: secondary / info / water */
+  --blue-50: #e6f0f7; /* Rain */
+  --blue-100: #cfe1ef;
+  --blue-600: #3c78a8; /* Khlong blue */
+  --blue-700: #2f6290;
+
+  /* Red: urgency only */
+  --red-50: #fbeceb;
+  --red-600: #c8423b; /* Alarm */
+
+  /* Urgency (markers, pills) */
+  --urgency-critical: #c8423b;
+  --urgency-high: #e07b39;
+  --urgency-medium: #e3b23c;
+  --urgency-low: #7fb38f;
+  --urgency-resolved: #a7b3ac;
+
+  /* Neutrals (green-tinted) */
+  --surface: #ffffff;
+  --surface-muted: #f6faf6;
+  /* Tonal surfaces (Material 3 idea): cards and containers one step off the background */
+  --surface-container-low: #f6faf6;
+  --surface-container-high: #e2eee4;
+  --line: #d9e6dc; /* dividers, quiet borders */
+  --outline: #8aa596; /* field borders: clearly visible, still soft */
+  --text: var(--green-900);
+  --text-muted: #557064;
+
+  /* Type: Atkinson Hyperlegible, designed for legibility; Thai fallback later */
+  --font: "Atkinson Hyperlegible", "IBM Plex Sans Thai Looped", system-ui, sans-serif;
+  --text-sm: 0.875rem; /* 14 */
+  --text-base: 1rem; /* 16 */
+  --text-md: 1.125rem; /* 18 */
+  --text-lg: 1.375rem; /* 22 */
+  --text-xl: 1.75rem; /* 28 */
+  --leading: 1.45;
+
+  /* Spacing (4 px grid) */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+
+  /* Shape: rounder = more interactive */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.875rem;
+  --radius-lg: 1.25rem;
+  --radius-pill: 999px;
+
+  /* Elevation (Material 3 levels, green-tinted instead of grey) */
+  --elevation-1: 0 1px 2px rgb(30 58 43 / 0.14), 0 1px 3px 1px rgb(30 58 43 / 0.08);
+  --elevation-2: 0 1px 2px rgb(30 58 43 / 0.14), 0 3px 8px 2px rgb(30 58 43 / 0.1);
+  --elevation-3: 0 2px 4px rgb(30 58 43 / 0.12), 0 8px 18px 4px rgb(30 58 43 / 0.12);
+  --shadow-float: var(--elevation-3);
+  --shadow-sheet: 0 -6px 24px rgb(30 58 43 / 0.16);
+  --focus-halo: 0 0 0 4px rgb(47 143 87 / 0.2);
+
+  --tap: 48px; /* minimum tap target */
+  --nav-height: 68px;
+  --panel-width: 400px;
+
+  --z-map: 0;
+  --z-overlay: 500; /* above Leaflet panes (400) */
+  --z-sheet: 800;
+  --z-nav: 900;
+
+  --duration: 180ms;
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration: 0ms;
+  }
+}

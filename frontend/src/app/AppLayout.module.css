@@ -1,0 +1,13 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh; /* fallback for older browsers */
+  height: 100dvh; /* visible height: follows the mobile address bar */
+}
+
+.main {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}

@@ -1,0 +1,9 @@
+.supplies {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.description {
+  max-width: 60ch;
+}

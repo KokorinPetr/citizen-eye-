@@ -218,3 +218,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Civic Eye deployment
+.env.prod
+deploy/certs/*.pem
+deploy/certs/*.key
+backups/

@@ -1,0 +1,79 @@
+.nav {
+  position: relative;
+  z-index: var(--z-nav);
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  align-items: center;
+  height: calc(var(--nav-height) + env(safe-area-inset-bottom));
+  padding: 0 var(--space-2) env(safe-area-inset-bottom);
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+}
+
+.item {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  min-height: var(--tap);
+  padding: var(--space-1) 0;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.item[aria-current="page"] {
+  color: var(--green-700);
+}
+
+/* The one bold element: raised round "Ask for help" button */
+.ask {
+  composes: item;
+  color: var(--green-900);
+}
+
+.askCircle {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  margin-top: -26px;
+  border: 4px solid var(--surface);
+  border-radius: 50%;
+  background: var(--green-600);
+  color: #fff;
+  box-shadow: var(--shadow-float);
+}
+
+.ask[aria-current="page"] .askCircle {
+  background: var(--green-700);
+}
+
+.community .askCircle {
+  background: var(--blue-600);
+}
+
+@media (min-width: 900px) {
+  .nav {
+    order: -1; /* top bar on desktop */
+    height: 64px;
+    grid-template-columns: repeat(4, max-content);
+    justify-content: center;
+    gap: var(--space-6);
+    border-top: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .item {
+    grid-auto-flow: column;
+    gap: var(--space-2);
+    font-size: var(--text-base);
+  }
+
+  .askCircle {
+    width: 40px;
+    height: 40px;
+    margin-top: 0;
+    border-width: 0;
+  }
+}

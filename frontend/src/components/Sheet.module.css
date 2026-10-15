@@ -1,0 +1,90 @@
+/* Mobile: bottom sheet above the nav. Desktop: left panel next to the map. */
+.sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: var(--z-sheet);
+  display: flex;
+  flex-direction: column;
+  max-height: 52%;
+  background: var(--surface);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  box-shadow: var(--shadow-sheet);
+  transition: max-height var(--duration) var(--ease);
+  animation: rise var(--duration) var(--ease);
+}
+
+.expanded {
+  max-height: 92%;
+}
+
+@keyframes rise {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-2) 0 var(--space-4);
+}
+
+.handle {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  min-height: 40px;
+  align-items: center;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.handle::before {
+  content: "";
+  width: 44px;
+  height: 5px;
+  border-radius: var(--radius-pill);
+  background: var(--line);
+}
+
+.iconButton {
+  display: grid;
+  place-items: center;
+  width: var(--tap);
+  height: var(--tap);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--surface-muted);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.body {
+  overflow-y: auto;
+  padding: 0 var(--space-5) var(--space-6);
+  overscroll-behavior: contain;
+}
+
+@media (min-width: 900px) {
+  .sheet,
+  .expanded {
+    top: var(--space-4);
+    left: var(--space-4);
+    right: auto;
+    bottom: var(--space-4);
+    width: var(--panel-width);
+    max-height: none;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-float);
+  }
+
+  .handle {
+    visibility: hidden;
+  }
+}

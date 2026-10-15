@@ -1,0 +1,46 @@
+/* Over the map: floats on top. In lists: sticks to the top of the page. */
+.overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: var(--z-overlay);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr); /* long chip rows scroll instead of widening the bar */
+  gap: var(--space-2);
+  padding: calc(var(--space-3) + env(safe-area-inset-top)) var(--space-4) 0;
+  pointer-events: none;
+}
+
+.static {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-overlay);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-2);
+  padding: calc(var(--space-3) + env(safe-area-inset-top)) var(--space-4) var(--space-3);
+  background: var(--green-50);
+}
+
+.overlay > * {
+  pointer-events: auto;
+}
+
+.inner {
+  display: grid;
+  gap: var(--space-2);
+  width: 100%;
+  max-width: 560px;
+}
+
+@media (min-width: 900px) {
+  .overlay {
+    left: calc(var(--panel-width) + 2 * var(--space-4));
+    justify-items: end;
+  }
+
+  .static {
+    justify-items: center;
+  }
+}

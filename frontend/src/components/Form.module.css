@@ -1,0 +1,96 @@
+.form {
+  display: grid;
+  gap: var(--space-5);
+}
+
+/* Raised card around a form (Material: elevated surface) */
+.card {
+  padding: var(--space-5);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--elevation-1);
+}
+
+.field {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.label {
+  font-weight: 700;
+}
+
+.hint {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.error {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--red-600);
+}
+
+.input {
+  width: 100%;
+  min-height: 52px;
+  padding: var(--space-3) var(--space-4);
+  border: 1.5px solid var(--outline);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  font-size: max(16px, var(--text-base)); /* ≥16px: no zoom-on-focus on iOS */
+  transition: border-color var(--duration) var(--ease), box-shadow var(--duration) var(--ease);
+}
+
+.input:hover {
+  border-color: var(--green-900);
+}
+
+.input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.8;
+}
+
+.input:focus {
+  border-color: var(--green-600);
+  box-shadow: var(--focus-halo);
+  outline: none;
+}
+
+.input[aria-invalid="true"] {
+  border-color: var(--red-600);
+}
+
+textarea.input {
+  min-height: 140px;
+  resize: vertical;
+  line-height: var(--leading);
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--tap);
+  font-weight: 700;
+}
+
+.checkbox input {
+  width: 24px;
+  height: 24px;
+  accent-color: var(--green-600);
+}
+
+.choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.formError {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--red-50);
+  color: var(--red-600);
+  font-weight: 700;
+}

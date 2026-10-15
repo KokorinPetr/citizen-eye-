@@ -1,0 +1,30 @@
+.picker {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.map {
+  position: absolute;
+  inset: 0;
+  background: var(--blue-50);
+}
+
+/* The pin stays in the centre; the map moves under it. */
+.pin {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: var(--z-overlay);
+  transform: translate(-50%, -100%);
+  color: var(--green-600);
+  filter: drop-shadow(0 3px 4px rgb(30 58 43 / 0.35));
+  pointer-events: none;
+}
+
+.locate {
+  position: absolute;
+  right: var(--space-4);
+  bottom: var(--space-4);
+  z-index: var(--z-overlay);
+}

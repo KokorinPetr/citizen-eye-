@@ -1,0 +1,28 @@
+/* A normal scrolling page (not the map): forms, account. */
+.screen {
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.content {
+  display: grid;
+  gap: var(--space-5);
+  width: 100%;
+  max-width: 560px;
+  margin: 0 auto;
+  padding: calc(var(--space-6) + env(safe-area-inset-top)) var(--space-5) var(--space-8);
+}
+
+.title {
+  font-size: var(--text-xl);
+  line-height: 1.2;
+}
+
+.lead {
+  color: var(--text-muted);
+}
+
+.back {
+  justify-self: start;
+}

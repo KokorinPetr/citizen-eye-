@@ -1,0 +1,53 @@
+# Everything in Docker: database + API + web app.
+#   make up      → web http://localhost:3000, API http://localhost:8000
+#   make seed    → demo data
+#   make down    → stop (data is kept)
+# For backend development (hot reload) use backend/Makefile instead (make run).
+name: civic-eye
+
+services:
+  db:
+    image: imresamu/postgis:17-3.5 # multi-arch build of postgis/postgis (works on Apple Silicon)
+    environment:
+      POSTGRES_USER: civic_eye
+      POSTGRES_PASSWORD: civic_eye
+      POSTGRES_DB: civic_eye
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U civic_eye -d civic_eye"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build: ./backend
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${API_PORT:-8000}:8000"
+    # Secrets come from backend/.env when started via the root Makefile (`--env-file`).
+    environment:
+      ENVIRONMENT: ${API_ENVIRONMENT:-local}
+      DATABASE_URL: postgresql+asyncpg://civic_eye:civic_eye@db:5432/civic_eye
+      CORS_ORIGINS: '["http://localhost:${WEB_PORT:-3000}","http://localhost:5173"]'
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-local-docker-only-secret-change-me}
+      AI_PROVIDER: ${AI_PROVIDER:-deepseek}
+      AI_MODEL: ${AI_MODEL:-deepseek-flash}
+      AI_API_KEY: ${AI_API_KEY:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+
+  web:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: http://localhost:${API_PORT:-8000}
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${WEB_PORT:-3000}:80"
+
+volumes:
+  postgres_data:
