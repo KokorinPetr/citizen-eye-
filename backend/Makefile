@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := help
-.PHONY: help install env db-up db-down db-reset db-logs db-shell migrate migration downgrade run dev test lint format check
+.PHONY: help install env db-up db-down db-reset db-logs db-shell migrate migration downgrade seed run dev test lint format check
 
 PORT ?= 8000
 
@@ -38,6 +38,9 @@ migration: ## Autogenerate a migration: make migration m="add incidents"
 
 downgrade: ## Roll back the last migration
 	uv run alembic downgrade -1
+
+seed: ## Load synthetic demo incidents + shelters (data/demo_seed.json), safe to re-run
+	uv run python -m scripts.seed_demo
 
 run: ## Run the API with auto-reload (default port 8000, override: make run PORT=8001)
 	uv run uvicorn app.main:app --reload --port $(PORT)

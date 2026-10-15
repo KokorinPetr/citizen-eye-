@@ -1,0 +1,318 @@
+{
+  "_note": "SYNTHETIC demo data, not real incidents. Loaded by `make seed`.",
+  "incidents": [
+    {
+      "title": "Family of 6 stuck on second floor",
+      "summary": "Water above the first floor, two children and a grandfather. Need a boat.",
+      "need_type": "evacuation",
+      "urgency": "critical",
+      "people_affected": 6,
+      "location": {
+        "lat": 20.428,
+        "lng": 99.883
+      },
+      "location_text": "Mae Sai market, Chiang Rai",
+      "contact_phone": "+66 81 000 0001",
+      "tasks": [
+        {
+          "title": "Boat pickup",
+          "role": "boat_operator",
+          "needed_count": 2
+        },
+        {
+          "title": "Help carry grandfather",
+          "role": "carrier",
+          "needed_count": 2
+        }
+      ]
+    },
+    {
+      "title": "Elderly woman needs insulin",
+      "summary": "Ran out of insulin, road to the clinic is flooded.",
+      "need_type": "medicine",
+      "urgency": "high",
+      "people_affected": 1,
+      "location": {
+        "lat": 19.9105,
+        "lng": 99.8406
+      },
+      "location_text": "Chiang Rai city, near clock tower",
+      "contact_phone": "+66 81 000 0002",
+      "tasks": [
+        {
+          "title": "Deliver insulin",
+          "role": "driver",
+          "needed_count": 1
+        }
+      ]
+    },
+    {
+      "title": "Riverside houses flooded along the Ping",
+      "summary": "About 20 people moved to upper floors, need drinking water and food.",
+      "need_type": "food",
+      "urgency": "medium",
+      "people_affected": 20,
+      "location": {
+        "lat": 18.7883,
+        "lng": 98.9853
+      },
+      "location_text": "Wat Ket, Chiang Mai",
+      "tasks": [
+        {
+          "title": "Bring food packs",
+          "role": "driver",
+          "needed_count": 1
+        },
+        {
+          "title": "Cook at the temple",
+          "role": "cook",
+          "needed_count": 3
+        }
+      ]
+    },
+    {
+      "title": "Water up to the knees on Soi 12",
+      "summary": "Street flooded, an old man cannot walk to the main road.",
+      "need_type": "evacuation",
+      "urgency": "high",
+      "people_affected": 2,
+      "location": {
+        "lat": 13.8167,
+        "lng": 100.5612
+      },
+      "location_text": "Soi Lat Phrao 12, Bangkok",
+      "contact_phone": "+66 81 000 0004"
+    },
+    {
+      "title": "Community needs drinking water",
+      "summary": "Tap water is contaminated after the flood.",
+      "need_type": "water",
+      "urgency": "medium",
+      "people_affected": 40,
+      "location": {
+        "lat": 13.9126,
+        "lng": 100.6068
+      },
+      "location_text": "Don Mueang, Bangkok",
+      "tasks": [
+        {
+          "title": "Deliver water bottles",
+          "role": "driver",
+          "needed_count": 2
+        }
+      ]
+    },
+    {
+      "title": "Shop owners need help moving stock",
+      "summary": "Water rising slowly, want to lift goods off the floor.",
+      "need_type": "other",
+      "urgency": "low",
+      "people_affected": 4,
+      "location": {
+        "lat": 14.3532,
+        "lng": 100.5689
+      },
+      "location_text": "Ayutthaya old town",
+      "tasks": [
+        {
+          "title": "Lift goods",
+          "role": "carrier",
+          "needed_count": 4
+        }
+      ]
+    },
+    {
+      "title": "Hat Yai: people trapped near the canal",
+      "summary": "Several houses cut off, water rising fast after heavy rain.",
+      "need_type": "boat",
+      "urgency": "critical",
+      "people_affected": 15,
+      "location": {
+        "lat": 7.0086,
+        "lng": 100.4747
+      },
+      "location_text": "Khlong U-Taphao, Hat Yai",
+      "contact_phone": "+66 81 000 0007",
+      "tasks": [
+        {
+          "title": "Boat rescue",
+          "role": "boat_operator",
+          "needed_count": 3
+        }
+      ]
+    },
+    {
+      "title": "Injured man, needs first aid",
+      "summary": "Cut his leg while clearing debris, bleeding.",
+      "need_type": "medical",
+      "urgency": "high",
+      "people_affected": 1,
+      "location": {
+        "lat": 6.8696,
+        "lng": 101.2501
+      },
+      "location_text": "Pattani town",
+      "tasks": [
+        {
+          "title": "First aid",
+          "role": "medic",
+          "needed_count": 1
+        }
+      ]
+    },
+    {
+      "title": "Village school used as shelter needs food",
+      "summary": "Around 60 people sleeping at the school, food for one more day.",
+      "need_type": "food",
+      "urgency": "medium",
+      "people_affected": 60,
+      "location": {
+        "lat": 8.4304,
+        "lng": 99.9631
+      },
+      "location_text": "Nakhon Si Thammarat",
+      "tasks": [
+        {
+          "title": "Deliver rice and canned food",
+          "role": "driver",
+          "needed_count": 2
+        }
+      ]
+    },
+    {
+      "title": "Rice fields flooded, families need temporary shelter",
+      "summary": "Three families lost their houses' ground floor.",
+      "need_type": "shelter",
+      "urgency": "medium",
+      "people_affected": 12,
+      "location": {
+        "lat": 15.2287,
+        "lng": 104.8564
+      },
+      "location_text": "Ubon Ratchathani, Mun river",
+      "tasks": [
+        {
+          "title": "Transport to shelter",
+          "role": "driver",
+          "needed_count": 2
+        }
+      ]
+    }
+  ],
+  "centers": [
+    {
+      "name": "Mae Sai temple shelter",
+      "center_type": "shelter",
+      "description": "Temple hall on high ground, sleeping mats available.",
+      "location": {
+        "lat": 20.4335,
+        "lng": 99.879
+      },
+      "phone": "+66 53 000 001",
+      "capacity": 150,
+      "supplies": [
+        "food",
+        "water",
+        "shelter"
+      ]
+    },
+    {
+      "name": "Chiang Mai volunteer supply point",
+      "center_type": "supply_point",
+      "description": "Collecting and handing out water, food packs and medicine.",
+      "location": {
+        "lat": 18.7953,
+        "lng": 98.962
+      },
+      "phone": "+66 53 000 002",
+      "supplies": [
+        "food",
+        "water",
+        "medicine"
+      ]
+    },
+    {
+      "name": "Lat Phrao community kitchen",
+      "center_type": "supply_point",
+      "description": "Hot meals twice a day.",
+      "location": {
+        "lat": 13.81,
+        "lng": 100.57
+      },
+      "supplies": [
+        "food"
+      ]
+    },
+    {
+      "name": "Hat Yai municipal shelter",
+      "center_type": "shelter",
+      "description": "Sports hall, ground floor dry.",
+      "location": {
+        "lat": 7.02,
+        "lng": 100.47
+      },
+      "phone": "+66 74 000 004",
+      "capacity": 400,
+      "supplies": [
+        "food",
+        "water",
+        "shelter",
+        "medical"
+      ]
+    },
+    {
+      "name": "Boat pool Hat Yai",
+      "center_type": "supply_point",
+      "description": "Volunteer boats available, ask for a driver.",
+      "location": {
+        "lat": 7.005,
+        "lng": 100.485
+      },
+      "phone": "+66 74 000 005",
+      "supplies": [
+        "boat",
+        "evacuation"
+      ]
+    }
+  ],
+  "volunteers": [
+    {
+      "email": "volunteer1@civiceye.dev",
+      "full_name": "Somchai (boat)",
+      "has_vehicle": true
+    },
+    {
+      "email": "volunteer2@civiceye.dev",
+      "full_name": "Malee",
+      "has_vehicle": false
+    },
+    {
+      "email": "volunteer3@civiceye.dev",
+      "full_name": "Anan (pickup truck)",
+      "has_vehicle": true
+    }
+  ],
+  "_signups_note": "incident / volunteer are indexes into the lists above; task is the task index (optional)",
+  "signups": [
+    {
+      "incident": 0,
+      "volunteer": 0,
+      "task": 0
+    },
+    {
+      "incident": 0,
+      "volunteer": 1,
+      "task": 1
+    },
+    {
+      "incident": 6,
+      "volunteer": 2,
+      "task": 0
+    },
+    {
+      "incident": 1,
+      "volunteer": 2,
+      "task": 0
+    }
+  ]
+}

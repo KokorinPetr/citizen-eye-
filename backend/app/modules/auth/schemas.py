@@ -32,6 +32,16 @@ class UserRead(BaseModel):
     created_at: datetime
 
 
+class UserPublic(BaseModel):
+    """What other people may see about a user. Never email or phone."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    full_name: str
+    has_vehicle: bool
+
+
 class RefreshRequest(BaseModel):
     refresh_token: str
 

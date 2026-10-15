@@ -2,5 +2,17 @@
 
 from app.core.base_model import Base
 from app.modules.auth.models import RefreshToken, User
+from app.modules.centers.models import Center
+from app.modules.incidents.models import Incident, IncidentReport, IncidentTask
+from app.modules.volunteers.models import VolunteerSignup
 
-__all__ = ["Base", "RefreshToken", "User"]
+__all__ = [
+    "Base",
+    "Center",
+    "Incident",
+    "IncidentReport",
+    "IncidentTask",
+    "RefreshToken",
+    "User",
+    "VolunteerSignup",
+]

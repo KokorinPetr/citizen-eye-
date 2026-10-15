@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Civic Eye dev map</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    html, body, #map { height: 100%; margin: 0; font: 13px system-ui, sans-serif; }
+    .panel { position: absolute; top: 10px; right: 10px; z-index: 1000; background: #fff;
+      padding: 10px 12px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.25); max-width: 230px; }
+    .panel h3 { margin: 0 0 6px; font-size: 14px; }
+    .panel label { display: block; margin: 2px 0; }
+    .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; }
+    .muted { color: #666; font-size: 12px; }
+    .popup h4 { margin: 0 0 4px; } .popup ul { margin: 4px 0; padding-left: 16px; }
+    code { background: #f2f2f2; padding: 1px 4px; border-radius: 3px; }
+  </style>
+</head>
+<body>
+<div id="map"></div>
+<div class="panel">
+  <h3>Civic Eye · dev map</h3>
+  <label><input type="checkbox" id="show-incidents" checked> Incidents</label>
+  <label><input type="checkbox" id="show-resolved"> + resolved</label>
+  <label><input type="checkbox" id="show-centers" checked> Shelters / supply points</label>
+  <div style="margin-top:6px">
+    <span class="dot" style="background:#7b1fa2"></span>critical
+    <span class="dot" style="background:#d32f2f"></span>high<br>
+    <span class="dot" style="background:#f57c00"></span>medium
+    <span class="dot" style="background:#fbc02d"></span>low
+    <span class="dot" style="background:#9e9e9e"></span>resolved
+  </div>
+  <div class="muted" style="margin-top:6px">Size = magnitude. Dashed = in progress. Squares = centers.<br>
+    Click empty map → copy location JSON.<br><span id="status">loading…</span></div>
+</div>
+<script>
+  const URGENCY_COLORS = { critical: "#7b1fa2", high: "#d32f2f", medium: "#f57c00", low: "#fbc02d" };
+  const CENTER_COLORS = { shelter: "#1976d2", supply_point: "#388e3c" };
+  const POLL_MS = 5000;
+
+  const map = L.map("map").setView([13.0, 101.0], 6);  // all of Thailand
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19, attribution: "&copy; OpenStreetMap contributors",
+  }).addTo(map);
+  const incidentLayer = L.layerGroup().addTo(map);
+  const centerLayer = L.layerGroup().addTo(map);
+
+  const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g,
+    (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+  const $ = (id) => document.getElementById(id);
+
+  function currentBbox() {
+    const b = map.getBounds();
+    const clamp = (v, lim) => Math.max(-lim, Math.min(lim, v));
+    return [clamp(b.getWest(), 180), clamp(b.getSouth(), 90), clamp(b.getEast(), 180), clamp(b.getNorth(), 90)]
+      .map((v) => v.toFixed(5)).join(",");
+  }
+
+  async function getJson(path) {
+    const response = await fetch(path);
+    if (!response.ok) throw new Error(`${path} → ${response.status}`);
+    return response.json();
+  }
+
+  async function incidentPopup(id) {
+    const [i, volunteers] = await Promise.all([
+      getJson(`/incidents/${id}`), getJson(`/incidents/${id}/volunteers`),
+    ]);
+    const tasks = i.tasks.map((t) => {
+      const names = volunteers.filter((v) => v.task.id === t.id)
+        .map((v) => escapeHtml(v.user.full_name) + (v.status === "completed" ? " ✓" : "")).join(", ");
+      const progress = t.status === "done" ? "✅ done" : `${t.signed_up_count}/${t.needed_count} going`;
+      return `<li>${escapeHtml(t.title)} <span class="muted">(${escapeHtml(t.role)})</span> — ${progress}
+        ${names ? `<br><span class="muted">${names}</span>` : ""}</li>`;
+    }).join("");
+    return `<div class="popup"><h4>${escapeHtml(i.title)}</h4>
+      <b>${escapeHtml(i.need_type)}</b> · ${escapeHtml(i.urgency)} · ${escapeHtml(i.status)}<br>
+      magnitude <b>${i.magnitude}</b> (level ${i.magnitude_level}) · reports ${i.report_count}<br>
+      helpers <b>${i.helpers_signed_up}/${i.helpers_needed}</b><br>
+      ${escapeHtml(i.summary)}<br><span class="muted">${escapeHtml(i.location_text)}</span>
+      <ul>${tasks}</ul><span class="muted">id <code>${i.id}</code></span></div>`;
+  }
+
+  function centerPopup(c) {
+    return `<div class="popup"><h4>${escapeHtml(c.name)}</h4>
+      ${escapeHtml(c.center_type)} · ${escapeHtml(c.status)} · ${c.is_official ? "official" : "community"}<br>
+      ${escapeHtml(c.description)}<br>
+      supplies: <b>${escapeHtml(c.supplies.join(", ") || "—")}</b><br>
+      ${c.capacity ? `capacity ${c.capacity}<br>` : ""}${c.phone ? `☎ ${escapeHtml(c.phone)}<br>` : ""}
+      <span class="muted">id <code>${c.id}</code></span></div>`;
+  }
+
+  async function refresh() {
+    const bbox = currentBbox();
+    try {
+      incidentLayer.clearLayers();
+      centerLayer.clearLayers();
+      let incidentCount = 0, centerCount = 0;
+
+      if ($("show-incidents").checked) {
+        const statuses = ["open", "in_progress", ...($("show-resolved").checked ? ["resolved"] : [])];
+        const query = new URLSearchParams([["bbox", bbox], ...statuses.map((s) => ["status", s])]);
+        const incidents = await getJson(`/incidents?${query}`);
+        incidentCount = incidents.length;
+        for (const i of incidents) {
+          const color = i.status === "resolved" ? "#9e9e9e" : URGENCY_COLORS[i.urgency];
+          L.circleMarker([i.location.lat, i.location.lng], {
+            radius: 6 + i.magnitude_level * 4, color, fillColor: color, weight: 2,
+            fillOpacity: i.status === "in_progress" ? 0.25 : 0.55,
+            dashArray: i.status === "in_progress" ? "4" : null,
+          }).bindPopup(() => "loading…").on("popupopen", async (e) => {
+            e.popup.setContent(await incidentPopup(i.id));
+          }).bindTooltip(`${i.title} · ${i.helpers_signed_up}/${i.helpers_needed} helpers`).addTo(incidentLayer);
+        }
+      }
+
+      if ($("show-centers").checked) {
+        const centers = await getJson(`/centers?bbox=${bbox}`);
+        centerCount = centers.length;
+        for (const c of centers) {
+          const color = CENTER_COLORS[c.center_type] || "#455a64";
+          L.marker([c.location.lat, c.location.lng], {
+            icon: L.divIcon({ className: "", iconSize: [16, 16],
+              html: `<div style="width:14px;height:14px;background:${color};border:2px solid #fff;box-shadow:0 0 3px #000"></div>` }),
+          }).bindPopup(centerPopup(c)).bindTooltip(c.name).addTo(centerLayer);
+        }
+      }
+      $("status").textContent = `${incidentCount} incidents, ${centerCount} centers · ${new Date().toLocaleTimeString()}`;
+    } catch (error) {
+      $("status").textContent = `error: ${error.message}`;
+    }
+  }
+
+  map.on("click", (e) => {
+    const json = JSON.stringify({ lat: +e.latlng.lat.toFixed(6), lng: +e.latlng.lng.toFixed(6) });
+    navigator.clipboard?.writeText(`"location": ${json}`).catch(() => {});
+    L.popup().setLatLng(e.latlng)
+      .setContent(`<code>"location": ${escapeHtml(json)}</code><br><span class="muted">copied to clipboard</span>`)
+      .openOn(map);
+  });
+  map.on("moveend", refresh);
+  for (const id of ["show-incidents", "show-resolved", "show-centers"]) $(id).addEventListener("change", refresh);
+  setInterval(() => { if (!map._popup?.isOpen()) refresh(); }, POLL_MS);
+  refresh();
+</script>
+</body>
+</html>

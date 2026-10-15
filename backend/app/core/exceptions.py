@@ -1,4 +1,6 @@
 from fastapi import FastAPI, Request
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 
@@ -26,6 +28,12 @@ class ConflictError(AppError):
     default_message = "Resource already exists"
 
 
+class InvalidInputError(AppError):
+    status_code = 422
+    code = "invalid_input"
+    default_message = "Invalid input"
+
+
 class AuthenticationError(AppError):
     status_code = 401
     code = "not_authenticated"
@@ -48,5 +56,27 @@ async def handle_app_error(request: Request, exc: Exception) -> JSONResponse:
     )
 
 
+async def handle_validation_error(request: Request, exc: Exception) -> JSONResponse:
+    """Same error shape as AppError, with FastAPI's field errors in `details`."""
+    assert isinstance(exc, RequestValidationError)
+    details = [
+        {"field": ".".join(str(part) for part in error["loc"]), "message": error["msg"]}
+        for error in exc.errors()
+    ]
+    return JSONResponse(
+        status_code=422,
+        content=jsonable_encoder(
+            {
+                "error": {
+                    "code": "validation_error",
+                    "message": "Invalid request",
+                    "details": details,
+                }
+            }
+        ),
+    )
+
+
 def register_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(AppError, handle_app_error)
+    app.add_exception_handler(RequestValidationError, handle_validation_error)

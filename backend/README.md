@@ -64,6 +64,20 @@ Stop: `Ctrl+C`, then `docker compose down`.
 | http://localhost:8000/docs            | Swagger UI, try endpoints in the browser  |
 | http://localhost:8000/openapi.json    | OpenAPI schema; import into Postman       |
 | http://localhost:8000/health          | Health check (API + database)             |
+| http://localhost:8000/dev/map         | Dev map: incidents + shelters (not in production) |
+
+## Demo data and the dev map
+
+```bash
+make seed       # 10 synthetic incidents across Thailand + 5 shelters/supply points
+make run        # then open http://localhost:8000/dev/map
+```
+
+- Seed login (coordinator, can manage everything): `demo@civiceye.dev` / `demo-password-1`.
+  Re-running `make seed` replaces the previous demo data. Edit `data/demo_seed.json` to change it.
+- On the map, circle size = magnitude and colour = urgency; squares are shelters (blue) and supply
+  points (green). Click a marker for details. Click empty map to copy a `"location": {...}` JSON for Postman.
+- The map refreshes every 5 s, so anything you create in Postman shows up automatically.
 
 ## Everyday commands
 
@@ -75,6 +89,7 @@ Stop: `Ctrl+C`, then `docker compose down`.
 | `make lint`                        | `uv run ruff check . && uv run ruff format --check .`  | Check code style                      |
 | `make format`                      | `uv run ruff check --fix . && uv run ruff format .`    | Auto-fix and format                   |
 | `make check`                       | lint + test                                            | Run before pushing                    |
+| `make seed`                        | `uv run python -m scripts.seed_demo`                   | Load demo data                        |
 | `make migrate`                     | `uv run alembic upgrade head`                          | Apply migrations                      |
 | `make migration m="add incidents"` | `uv run alembic revision --autogenerate -m "..."`      | Create a migration from model changes |
 | `make downgrade`                   | `uv run alembic downgrade -1`                          | Undo the last migration               |

@@ -110,19 +110,57 @@ The map itself is rendered on the frontend (Leaflet + OpenStreetMap tiles). The 
 **Storage.** See `DATA_MODEL.md` for every table. Each incident and center has a `location geography(Point, 4326)` column with a GiST
 index. The API exposes plain `lat` / `lng` numbers; conversion happens only in `shared/geo.py`.
 
-**Getting coordinates for an incident** (first match wins):
-1. Coordinates sent by the client: a tap on the map or the browser's GPS location.
-2. Geocoding the AI-extracted `location_text` via Nominatim (bounded to the Bangkok area).
-3. Nothing found: save the incident with `location_status = "unresolved"` so the reporter can pin it.
+**Getting coordinates for an incident:** always from the client.
+1. The frontend uses browser GPS only to centre the map and drop a draft pin.
+2. The user drags the pin or taps the map to adjust it.
+3. The pin is sent as `location: {lat, lng}` (required). The backend checks that it lies in the service
+   area (`SERVICE_AREA_BBOX`, all of Thailand) and stores it. The owner can move it later with `PATCH`.
+
+There is no geocoding for incidents. `location_text` is free text for humans (Nominatim stays only
+for the centers scraper).
 
 **Reading for the map:**
-- `GET /incidents?bbox=min_lng,min_lat,max_lng,max_lat&status=open&type=food` returns light
+- `GET /incidents?bbox=min_lng,min_lat,max_lng,max_lat&status=open&need_type=food` returns light
   map items (id, lat, lng, type, urgency, status, helpers `3/5`). The frontend polls it every few seconds.
 - `GET /incidents/{id}` returns the full card.
 - `GET /centers?bbox=...&type=shelter` returns the same kind of list for the centers layer.
 - `GET /centers/nearest?lat=&lng=&type=hospital` returns the nearest centers with their distance.
 - The bbox query uses `ST_MakeEnvelope` + `ST_Intersects`, and nearest/dedup use `ST_DWithin` /
-  `ST_Distance`. All of these live as helpers in `shared/geo.py` and are reused by every module.
+  `ST_Distance`. All of these live as helpers in `shared/geo.py` and are reused by every module:
+  `point_column()`, `to_db_point()`, `DbPoint` (response type), `within_bbox()`, `within_distance()`,
+  `distance_meters()`, `parse_bbox` (query dependency), `ensure_in_service_area()`.
+- PostGIS order is **(lng, lat)**. Only `shared/geo.py` builds or reads points.
+
+**Privacy:** an incident's `contact_phone` is returned only on `GET /incidents/{id}` to logged-in
+users, never on the public map list. Center phones are public (they are a place's contact).
+
+## Centers (shelters and supply points)
+
+Users can add their own places to the map: `POST /centers` with a pin, `center_type`
+(`shelter`, `supply_point`, ...), phone, capacity and `supplies` (list of `NeedType`, e.g. food,
+water, boat). The owner keeps `status` (open / full / closed) and supplies up to date. Official data
+(OSM, BMA) goes into the same table with another `source` and no owner, so only coordinators can edit
+it. `GET /centers?bbox=&center_type=&status=&supply=medicine` returns them for the map.
+
+## Dev tools
+
+- `make seed` loads `data/demo_seed.json` (synthetic) with a demo coordinator account.
+- `/dev/map` (`app/modules/dev/`) is a small Leaflet page for checking data. It is not mounted when `ENVIRONMENT=production`.
+
+## Incident status rules
+
+| Change | Who / what |
+| --- | --- |
+| → `open` | Created (manually or from a report) |
+| `open` → `in_progress` | Automatic: first volunteer signs up (or a task is done) |
+| `in_progress` → `open` | Automatic: every volunteer cancels |
+| → `resolved` | Owner, coordinator/admin (`POST /incidents/{id}/resolve`), or automatically when **all tasks** are done (`POST /incidents/{id}/tasks/{task_id}/done`) |
+| `resolved` → `open` | Owner, coordinator/admin (`POST /incidents/{id}/reopen`), or automatically when a new report is merged within 24 h (Phase 5) |
+
+The AI never changes status; it only sets need type, urgency, people affected and tasks.
+Anti-abuse (kept simple): volunteers can only complete tasks they signed up for, max 2 active
+signups per user, and a new report reopens a wrongly resolved incident. The owner is the logged-in
+creator; owner + coordinators/admins can edit, resolve, reopen and delete.
 
 ## AI connectors (`integrations/ai`)
 
@@ -153,9 +191,9 @@ class AIConnector(Protocol):
 ## Report intake pipeline (`modules/reports`)
 
 ```
-text (+ optional lat/lng)
-  → ai_connector.parse_report()      → ParsedReport (location_text, need_type, urgency, people_needed, tasks)
-  → resolve_location()                → point (client coordinates or geocoder)
+text + lat/lng (pin)
+  → ai_connector.parse_report()      → ParsedReport (location_text, need_type, urgency, people_affected, tasks)
+  → ensure_in_service_area()
   → incidents.service.find_duplicate()→ open incident, same need_type, within ~200 m
   → merge (report_count += 1, keep the higher urgency) OR incidents.service.create_incident()
   → incidents.service.recalculate_magnitude()
@@ -168,8 +206,12 @@ Every raw report is stored in a `reports` table linked to its incident (for audi
 ## Rules that keep it modular
 
 - New feature = new folder in `modules/` + one line in `app/api.py` + one Alembic migration.
-- No imports from another module's `models.py` / `repository.py`. Import its `service.py` instead.
+- No imports from another module's `models.py` / `repository.py`. Import its `service.py` instead
+  (`enums.py` and `schemas.py` are shared vocabulary and fine to import). A repository may *join*
+  another module's model for a read query (e.g. volunteers counts only signups on active incidents).
+- Ownership checks use one helper: `auth.permissions.ensure_owner_or_manager()`.
 - Swapping a provider (another LLM, another geocoder) means adding or changing one file in `integrations/` plus an env var.
 - Config only from `core/config.py`. No hardcoded keys, URLs or thresholds.
+- Every error response is `{"error": {"code", "message", "details?"}}`, validation errors included.
 - Errors: raise domain exceptions (`NotFoundError`, `PermissionDeniedError`) from services. They are
   mapped to HTTP responses in one place (`core/exceptions.py`).

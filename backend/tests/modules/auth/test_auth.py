@@ -4,6 +4,7 @@ from datetime import timedelta
 from httpx import AsyncClient
 
 from app.core.security import TokenType, create_token
+from tests.helpers import bearer
 
 REGISTER_URL = "/auth/register"
 LOGIN_URL = "/auth/login"
@@ -19,14 +20,10 @@ USER_DATA = {
 }
 
 
-async def register_user(client: AsyncClient, **overrides: object) -> dict:
-    response = await client.post(REGISTER_URL, json={**USER_DATA, **overrides})
+async def register_user(client: AsyncClient) -> dict:
+    response = await client.post(REGISTER_URL, json=USER_DATA)
     assert response.status_code == 201, response.text
     return response.json()
-
-
-def bearer(token: str) -> dict[str, str]:
-    return {"Authorization": f"Bearer {token}"}
 
 
 async def test_register_returns_user_and_tokens(client: AsyncClient) -> None:
@@ -55,6 +52,9 @@ async def test_register_validates_input(client: AsyncClient) -> None:
 
     assert short_password.status_code == 422
     assert bad_email.status_code == 422
+    error = short_password.json()["error"]
+    assert error["code"] == "validation_error"
+    assert error["details"][0]["field"] == "body.password"
 
 
 async def test_login_success(client: AsyncClient) -> None:

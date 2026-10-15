@@ -23,44 +23,55 @@ Tick items `[x]` as they are done. Riskier work comes first. See `ARCHITECTURE.m
 - [x] Tests: happy path, wrong password, expired token, reused refresh token
 
 ## Phase 2 — Geo + incidents (map data)
-- [ ] `shared/geo.py`: `Point`, `BBox` schemas, bbox filter, distance/within helpers
-- [ ] `incidents` + `incident_tasks` models per `DATA_MODEL.md` (geography point, GiST index, enums)
-- [ ] `calculate_magnitude()` + `magnitude_level` / helper counter / priority in responses
-- [ ] `POST /incidents` (auth), `GET /incidents/{id}`
-- [ ] `GET /incidents` with `bbox`, `status`, `type` filters (lightweight map items)
-- [ ] `PATCH /incidents/{id}` (status flow open → in_progress → resolved), `DELETE /incidents/{id}`
-- [ ] Tests for bbox filtering and status transitions
+- [x] Service area = all of Thailand; `contact_phone` on incidents (logged-in only)
+- [x] `shared/geo.py`: `Point`, `BBox` schemas, bbox filter, distance/within helpers
+- [x] `incidents` + `incident_tasks` models per `DATA_MODEL.md` (geography point, GiST index, enums)
+- [x] `calculate_magnitude()` + `magnitude_level` / helper counter / priority in responses
+- [x] `POST /incidents` (auth), `GET /incidents/{id}`
+- [x] `GET /incidents` with `bbox`, `status`, `type` filters (lightweight map items)
+- [x] `PATCH /incidents/{id}` (owner/coordinator edits, move pin), `POST /incidents/{id}/resolve` + `/reopen`, `DELETE /incidents/{id}`
+- [x] `reports` table (`IncidentReport`): manual creation stores a report; magnitude = avg + bonus
+- [x] Tests for bbox filtering and status transitions
 
 ## Phase 3 — Volunteers
-- [ ] `volunteer_signups` model (user, incident, task; unique active signup per user per incident)
-- [ ] `POST /incidents/{id}/volunteers` ("I'm going"), `DELETE /incidents/{id}/volunteers/{vid}`
-- [ ] Helper counter (`signed_up / needed_people`) in incident responses
-- [ ] Auto-move incident to `in_progress` when the first volunteer signs up
+- [x] `volunteer_signups` model (user, incident, task; unique active signup per user per incident)
+- [x] `POST /incidents/{id}/volunteers` ("I'm going"), `DELETE /incidents/{id}/volunteers/{vid}`
+- [x] Max 2 active signups per user
+- [x] Helper counter (`signed_up / helpers_needed`) in incident responses
+- [x] Auto `in_progress` on first signup, back to `open` when all cancel
+- [x] Volunteers mark their own task done → all tasks done → incident `resolved`
+- [x] Owner adds tasks later (`POST /incidents/{id}/tasks`); reopen resets done tasks
+- [x] Seed volunteers + sign-ups; dev map shows volunteers per task
+- [x] Unified error shape (validation errors too); `FRONTEND_INTEGRATION.md` at repo root
+- [x] Public: `GET /incidents/{id}/volunteers` (who is going, per task), `GET /users/{id}/signups`
 
 ## Phase 4 — AI report intake
 - [ ] `integrations/ai/connector.py`: `AIConnector` protocol + `AIConnectorError`
 - [ ] `integrations/ai/factory.py` + `fake` provider (tests/offline) + first real provider
 - [ ] `ParsedReport` schema + report-parsing prompt; test with Thai / English / Russian samples
-- [ ] `integrations/geocoder.py`: Nominatim, Bangkok bounding box, rate limit, cache
-- [ ] `reports` model; `POST /reports` (public): parse → resolve location → create incident
-- [ ] Fallback when the AI call or geocoding fails (store raw report, `unresolved` location)
+- [ ] `POST /reports` (public, text + pin): parse → create incident (or merge, Phase 5)
+- [ ] Fallback when the AI call fails (store raw report with `status = failed`)
 
 ## Phase 5 — Deduplication
-- [ ] `incidents.service.find_duplicate()` (same need type, open, within N meters, configurable)
+- [ ] `incidents.service.find_duplicate()` (same need type, active or resolved < 24 h, within N meters)
+- [ ] Merging into a resolved incident reopens it
 - [ ] Merge: link report, `report_count += 1`, raise urgency, add missing task roles, recalculate magnitude
 - [ ] Optional AI check "same situation?" for different need types
 - [ ] `verified` flag after a 2nd independent report or volunteer confirmation
 
 ## Phase 6 — Emergency centers
-- [ ] `centers` model + migration
+- [x] `centers` model + migration (user-created shelters / supply points with supplies)
+- [x] `POST/PATCH/DELETE /centers` for users (owner / coordinator)
 - [ ] `data/centers_snapshot.json` (OSM Overpass + hand-entered hotlines)
 - [ ] `scripts/scrape_centers.py` (fetch → AI extract → geocode → snapshot)
 - [ ] Loader from snapshot into DB
-- [ ] `GET /centers` (type, bbox), `GET /centers/nearest`
+- [x] `GET /centers` (type, bbox, status, supply), `GET /centers/{id}`
+- [ ] `GET /centers/nearest`
 - [ ] Attach nearest shelter/hospital + hotline to the incident card
 
 ## Phase 7 — Demo and deploy
-- [ ] `POST /seed` + realistic demo data (marked synthetic)
+- [x] `make seed` + realistic demo data across Thailand (`data/demo_seed.json`, synthetic)
+- [x] Dev map at `/dev/map`
 - [ ] Dockerfile for the backend; `docker compose up` runs API + DB
 - [ ] Deploy (Render/Railway + Supabase/Neon), env vars, CORS origins
 - [ ] Wake the backend and run the full flow before the pitch

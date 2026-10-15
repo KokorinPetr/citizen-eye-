@@ -2,6 +2,7 @@ import asyncio
 from logging.config import fileConfig
 
 from alembic import context
+from geoalchemy2 import alembic_helpers
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
@@ -31,7 +32,9 @@ def include_object(obj, name, type_, reflected, compare_to) -> bool:
 
     Side effect: dropping one of our tables needs a hand-written `op.drop_table` migration.
     """
-    return not (type_ == "table" and reflected and compare_to is None)
+    if type_ == "table" and reflected and compare_to is None:
+        return False
+    return alembic_helpers.include_object(obj, name, type_, reflected, compare_to)
 
 
 # other values from the config, defined by the needs of env.py,
@@ -67,7 +70,11 @@ def run_migrations_offline() -> None:
 
 def do_run_migrations(connection: Connection) -> None:
     context.configure(
-        connection=connection, target_metadata=target_metadata, include_object=include_object
+        connection=connection,
+        target_metadata=target_metadata,
+        include_object=include_object,
+        process_revision_directives=alembic_helpers.writer,
+        render_item=alembic_helpers.render_item,
     )
 
     with context.begin_transaction():

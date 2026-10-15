@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api import api_router
 from app.core.config import get_settings
 from app.core.exceptions import register_exception_handlers
+from app.modules.dev.router import router as dev_router
 
 
 def create_app() -> FastAPI:
@@ -18,6 +19,8 @@ def create_app() -> FastAPI:
     )
     register_exception_handlers(app)
     app.include_router(api_router)
+    if settings.environment != "production":
+        app.include_router(dev_router)
     return app
 
 

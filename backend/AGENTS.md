@@ -4,16 +4,17 @@ We work **only in `/backend`**. Do not edit `/frontend` or other folders unless 
 
 ## Project context
 
-Civic Eye is a hackathon web app (U Hackathon, AI track) for coordinating flood response in Bangkok.
+Civic Eye is a hackathon web app (U Hackathon, AI track) for coordinating flood response in Thailand.
 
+- Covers **all of Thailand** (north, south and Bangkok are the most affected).
 - People report problems in free text (Thai, English or Russian), optionally with a photo.
 - An AI model (through our connector layer) turns each report into a structured incident: location, need type
   (evacuation, food, medicine, boat, other), urgency, people needed and tasks with roles.
 - Reports about the same place and need are merged (deduplication) into one incident.
 - Volunteers see incidents on a live map, tap "I'm going", and the helper counter updates for everyone (frontend polls).
 - Incidents move through `open` → `in_progress` → `resolved`.
-- An emergency-centers layer (shelters, hospitals, fire stations, hotlines) is loaded from a saved
-  JSON snapshot (OpenStreetMap / BMA sources), each entry with `source_url` and `retrieved_at`.
+- A centers layer: **users can add their own shelters and supply points** (with the supplies they
+  offer), and official ones (OpenStreetMap / BMA) are imported into the same table with `source_url`.
 
 Out of scope: in-app chat, push notifications, official warning system integration.
 
@@ -90,12 +91,13 @@ Commit both `pyproject.toml` and `uv.lock`.
 
 - **`ARCHITECTURE.md`**: the modular monolith layout, auth design, coordinates/map, and report pipeline. Read it before adding code.
 - **`DATA_MODEL.md`**: tables, enums, merging rules and incident magnitude.
+- **`../FRONTEND_INTEGRATION.md`**: the API contract for the frontend. Update it when endpoints or response fields change.
 - **`ROADMAP.md`**: the phased task list. Tick items `[x]` when they are done and keep the list current.
 
 Short version: each feature is its own folder in `app/modules/<feature>/` with `router.py`,
 `schemas.py`, `models.py`, `repository.py`, `service.py` and `dependencies.py`. Shared infrastructure goes in
 `app/core/`, shared helpers in `app/shared/`, and external APIs in `app/integrations/`. Modules use each
-other only through `service.py`. Routers stay thin. All DB queries go in repositories.
+other only through `service.py` (importing another module's `enums.py` / `schemas.py` is fine). Routers stay thin. All DB queries go in repositories.
 
 ## Naming and style
 
