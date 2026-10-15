@@ -1,8 +1,8 @@
 import { useNavigate, useParams } from "react-router";
 import { useFocusOnMap } from "../map/useFocusOnMap";
-import type { Incident, Task } from "../../api/types";
+import type { Incident } from "../../api/types";
 import { ButtonLink } from "../../components/Button";
-import { Actions, DetailHeader, Meta, Note, Progress, Section } from "../../components/Detail";
+import { Actions, DetailHeader, Meta, Progress, Section } from "../../components/Detail";
 import { Pill } from "../../components/Pill";
 import { Sheet } from "../../components/Sheet";
 import { ErrorState, LoadingState } from "../../components/States";
@@ -13,6 +13,7 @@ import { NearestHelp } from "../centers/NearestHelp";
 import { URGENCY_COLOR } from "../map/meta";
 import { useIncident, useIncidentReports, useIncidentVolunteers } from "./api";
 import styles from "./IncidentSheet.module.css";
+import { TaskList } from "./TaskList";
 
 export function IncidentSheet() {
   const { id = "" } = useParams();
@@ -84,12 +85,7 @@ function IncidentDetails({ incident }: { incident: Incident }) {
       </Section>
 
       <Section title={t.incident.whatCanIDo}>
-        <ul className={styles.tasks}>
-          {incident.tasks.map((task) => (
-            <TaskRow key={task.id} task={task} />
-          ))}
-        </ul>
-        <Note>{t.incident.joinSoon}</Note>
+        <TaskList incident={incident} />
       </Section>
 
       <Volunteers incidentId={incident.id} />
@@ -100,25 +96,6 @@ function IncidentDetails({ incident }: { incident: Incident }) {
 
       <ReportHistory incidentId={incident.id} />
     </>
-  );
-}
-
-function TaskRow({ task }: { task: Task }) {
-  const done = task.status === "done";
-  const status = done
-    ? t.incident.done
-    : task.spots_left > 0
-      ? format(t.incident.spotsLeft, { n: task.spots_left })
-      : t.incident.full;
-  return (
-    <li className={[styles.task, done && styles.taskDone].filter(Boolean).join(" ")}>
-      <span className={styles.taskText}>
-        <span className={styles.taskTitle}>{task.title}</span>
-        <span className={styles.taskMeta}>
-          {t.role[task.role]}, {status}
-        </span>
-      </span>
-    </li>
   );
 }
 

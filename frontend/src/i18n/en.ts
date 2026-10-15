@@ -81,7 +81,16 @@ export const en = {
     notParsed: "Report not processed yet",
     nearestHelp: "Nearest help",
     reportedAgo: "Reported {ago}",
-    joinSoon: "Joining a task from here is coming in the next update.",
+    youreGoing: "You're going",
+    markDone: "Mark as done",
+    confirmDone: "Tap again to confirm",
+    cancelGoing: "Cancel",
+    loginToHelp: "Log in to help",
+    alreadyHelpingHere: "You're already helping with another task here.",
+    joined: "Thanks! The person who asked can see you're on the way.",
+    taskDone: "Marked as done.",
+    resolved: "Everything is done. This request is resolved.",
+    youAreOwner: "You asked for this help. You can mark tasks as done.",
   },
   center: {
     type: {

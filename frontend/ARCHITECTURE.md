@@ -138,10 +138,10 @@ npm run lint
 2. ✅ Ask for help: pin (fixed centre pin, "use my location") → text → AI check (editable) → result
    (incl. merged / rejected). ✅ Add a shelter / supply point (login required).
 3. Accounts: ✅ login / register / logout, ✅ "Me" with my sign-ups, ✅ token refresh on 401;
-   ⬜ I'm going / cancel / task done; ⬜ routes to nearest help.
+   ✅ I'm going / cancel / mark task done (tap twice to confirm); ⬜ routes to nearest help.
 4. ⬜ Community: respond, new post (AI draft), responses inbox, my posts.
 5. ⬜ Polish: marker clustering if needed, Thai texts.
-6. ⬜ Deploy (host decided later; static files work anywhere, needs SPA fallback to index.html).
+6. ✅ Deployed: one server behind Cloudflare (see ../deploy/README.md).
 
 ## Docker
 `frontend/Dockerfile` builds the static files with Node (`VITE_API_URL` is a build argument, baked
