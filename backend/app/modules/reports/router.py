@@ -1,10 +1,7 @@
-from typing import Annotated
-
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, status
 
 from app.core.database import DbSession
-from app.integrations.ai.connector import AIConnector
-from app.integrations.ai.factory import get_ai_connector
+from app.integrations.ai.factory import AIConnectorDep
 from app.modules.auth.dependencies import OptionalUser
 from app.modules.reports import service
 from app.modules.reports.schemas import (
@@ -15,8 +12,6 @@ from app.modules.reports.schemas import (
 )
 
 router = APIRouter(prefix="/reports", tags=["reports"])
-
-AIConnectorDep = Annotated[AIConnector, Depends(get_ai_connector)]
 
 
 @router.post("/preview")

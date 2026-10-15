@@ -1,13 +1,14 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Query, status
 
 from app.core.database import DbSession
 from app.modules.auth.dependencies import CurrentUser, OptionalUser
 from app.modules.incidents import service
-from app.modules.incidents.enums import IncidentStatus, NeedType
+from app.modules.incidents.dependencies import IncidentFiltersDep
 from app.modules.incidents.schemas import (
+    AreaAlert,
     IncidentCreate,
     IncidentMapItem,
     IncidentRead,
@@ -15,22 +16,15 @@ from app.modules.incidents.schemas import (
     IncidentUpdate,
     TaskCreate,
 )
-from app.shared.geo import BBox, parse_bbox
+from app.shared.geo import GeoPoint
 
 router = APIRouter(prefix="/incidents", tags=["incidents"])
 
 
 @router.get("")
-async def list_incidents(
-    session: DbSession,
-    bbox: Annotated[BBox | None, Depends(parse_bbox)],
-    status: Annotated[
-        list[IncidentStatus] | None,
-        Query(description="Repeatable. Default: open + in_progress"),
-    ] = None,
-    need_type: NeedType | None = None,
-) -> list[IncidentMapItem]:
-    incidents = await service.list_incidents(session, bbox, status, need_type)
+async def list_incidents(session: DbSession, filters: IncidentFiltersDep) -> list[IncidentMapItem]:
+    """Map layer: `?bbox=&status=&need_type=&need_type=&urgency=&verified=true`."""
+    incidents = await service.list_incidents(session, filters)
     return [IncidentMapItem.model_validate(incident) for incident in incidents]
 
 
@@ -95,3 +89,16 @@ async def add_task(
 @router.delete("/{incident_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_incident(incident_id: uuid.UUID, session: DbSession, user: CurrentUser) -> None:
     await service.delete_incident(session, incident_id, user)
+
+
+alerts_router = APIRouter(prefix="/alerts", tags=["incidents"])
+
+
+@alerts_router.get("")
+async def get_area_alert(
+    session: DbSession,
+    lat: Annotated[float, Query(ge=-90, le=90)],
+    lng: Annotated[float, Query(ge=-180, le=180)],
+) -> AreaAlert:
+    """Public. Poll from the Community screen: `active: true` → show the Emergency banner."""
+    return await service.get_area_alert(session, GeoPoint(lat=lat, lng=lng))

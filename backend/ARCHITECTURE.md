@@ -153,6 +153,36 @@ it. `GET /centers?bbox=&center_type=&status=&supply=medicine` returns them for t
 - `GET /centers/nearest?lat=&lng=&center_type=hospital&limit=3` uses PostGIS KNN (`<->`,
   `order_by_nearest()` in `shared/geo.py`) and returns `distance_m`; closed places are skipped.
 - `GET /hotlines` serves `data/hotlines.json` (verify the numbers before the demo).
+- Filters: `IncidentFilters` / `CenterFilters` (in each module's `schemas.py`), built by one FastAPI
+  dependency per module (`dependencies.py`) and applied in the repository. Adding a filter = one
+  field + one `where`.
+- Routes: `app/integrations/routing.py` (`Router` protocol, `OsrmRouter`, `get_router` dependency;
+  `ROUTING_BASE_URL`, default the public OSRM demo server). `GET /centers/nearest/routes` takes the
+  nearest places, fetches road routes in parallel, sorts by road distance, and falls back to
+  straight lines if routing fails. Always returns a "roads may be flooded" warning.
+
+## Community board (`modules/community`)
+
+The everyday part of the app, built from the same blocks as incidents but in **its own module and
+tables** (no `kind` flag inside incidents, so the emergency flow is never affected):
+
+- `community_posts`: category (`lost_pet`, `found_pet`, `lost_item`, `found_item`, `help_wanted`,
+  `help_offered`, `other`), pin, `details` JSONB (species, colour, item…; new fields need no
+  migration), **optional** `reward_amount` (THB) + `reward_note`, status `open → matched → closed`,
+  `expires_at` (30 days, `COMMUNITY_POST_TTL_DAYS`). Login required to post (anti-scam).
+- `community_responses`: "I found it" / "I can help" + message. Visible only to the author and the
+  responder (public sees `response_count`). The author accepts one → post `matched`, other pending
+  responses `declined`; if the accepted helper withdraws, the post is open again.
+- Reused: `shared/geo` (pins, bbox), `ensure_owner_or_manager`, filter-object pattern
+  (`PostFilters`), the AI connector (`POST /community/posts/preview` with `community/prompts.py`),
+  `PhoneNumber` (contact phone hidden from anonymous viewers).
+- **No payments.** `platform_fee_preview` (5% of the reward) is shown for the pitch only; people
+  settle rewards themselves (e.g. PromptPay QR). See README → "Business model".
+
+### Emergency ↔ Community (`GET /alerts`)
+`GET /alerts?lat=&lng=` (incidents module) returns active **high/critical** incidents within
+`ALERT_RADIUS_M` (5 km), closest first. The Community screen polls it; `active: true` → red banner /
+switch to Emergency mode.
 
 ## Dev tools
 

@@ -1,6 +1,7 @@
 """Helpers shared by all test modules."""
 
 import uuid
+from datetime import UTC, datetime
 from typing import Any
 
 from httpx import AsyncClient
@@ -9,6 +10,9 @@ from sqlalchemy import update
 from app.core.database import session_factory
 from app.modules.auth.enums import UserRole
 from app.modules.auth.models import User
+from app.modules.centers import service as centers_service
+from app.modules.centers.enums import CenterSource
+from app.modules.centers.schemas import CenterImport
 
 DEFAULT_PASSWORD = "strong-password-1"
 
@@ -64,3 +68,19 @@ async def create_incident(client: AsyncClient, headers: dict[str, str], **overri
     response = await client.post(INCIDENTS_URL, json=incident_data(**overrides), headers=headers)
     assert response.status_code == 201, response.text
     return response.json()
+
+
+def official(name: str, lat: float, center_type: str = "hospital") -> CenterImport:
+    return CenterImport(
+        name=name,
+        center_type=center_type,
+        location={"lat": lat, "lng": 100.4747},
+        source=CenterSource.OSM,
+        source_url=f"https://www.openstreetmap.org/node/{abs(hash(name))}",
+        retrieved_at=datetime(2026, 10, 15, tzinfo=UTC),
+    )
+
+
+async def load_official(items: list[CenterImport]) -> int:
+    async with session_factory() as session:
+        return await centers_service.replace_official_centers(session, CenterSource.OSM, items)

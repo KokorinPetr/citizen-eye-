@@ -17,5 +17,24 @@ services:
       timeout: 3s
       retries: 20
 
+  api:
+    build: .
+    container_name: civic-eye-api
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${API_PORT:-8000}:8000"
+    environment:
+      ENVIRONMENT: ${API_ENVIRONMENT:-local}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-civic_eye}:${POSTGRES_PASSWORD:-civic_eye}@db:5432/${POSTGRES_DB:-civic_eye}
+      CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost:5173","http://localhost:3000"]}
+      # Values come from .env when it exists; the defaults are for local use only.
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-local-docker-only-secret-change-me}
+      AI_PROVIDER: ${AI_PROVIDER:-deepseek}
+      AI_MODEL: ${AI_MODEL:-deepseek-flash}
+      AI_API_KEY: ${AI_API_KEY:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+
 volumes:
   postgres_data:

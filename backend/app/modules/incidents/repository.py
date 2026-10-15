@@ -6,9 +6,10 @@ from datetime import datetime
 from sqlalchemy import and_, distinct, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.incidents.enums import ACTIVE_STATUSES, IncidentStatus, NeedType
+from app.modules.incidents.enums import ACTIVE_STATUSES, IncidentStatus, NeedType, Urgency
 from app.modules.incidents.models import Incident, IncidentReport, IncidentTask
-from app.shared.geo import BBox, GeoPoint, distance_meters, within_bbox, within_distance
+from app.modules.incidents.schemas import IncidentFilters
+from app.shared.geo import GeoPoint, distance_meters, within_bbox, within_distance
 
 MAP_ITEMS_LIMIT = 500
 
@@ -24,17 +25,18 @@ async def get_incident(session: AsyncSession, incident_id: uuid.UUID) -> Inciden
     return await session.get(Incident, incident_id)
 
 
-async def list_incidents(
-    session: AsyncSession,
-    statuses: Sequence[IncidentStatus],
-    bbox: BBox | None = None,
-    need_type: NeedType | None = None,
-) -> Sequence[Incident]:
-    query = select(Incident).where(Incident.status.in_(statuses))
-    if bbox is not None:
-        query = query.where(within_bbox(Incident.location, bbox))
-    if need_type is not None:
-        query = query.where(Incident.need_type == need_type)
+async def list_incidents(session: AsyncSession, filters: IncidentFilters) -> Sequence[Incident]:
+    query = select(Incident)
+    if filters.bbox is not None:
+        query = query.where(within_bbox(Incident.location, filters.bbox))
+    if filters.statuses:
+        query = query.where(Incident.status.in_(filters.statuses))
+    if filters.need_types:
+        query = query.where(Incident.need_type.in_(filters.need_types))
+    if filters.urgencies:
+        query = query.where(Incident.urgency.in_(filters.urgencies))
+    if filters.verified is not None:
+        query = query.where(Incident.is_verified.is_(filters.verified))
     query = query.order_by(Incident.magnitude.desc(), Incident.created_at.desc()).limit(
         MAP_ITEMS_LIMIT
     )
@@ -113,3 +115,26 @@ async def list_incident_reports(
         .order_by(IncidentReport.created_at)
     )
     return (await session.execute(query)).scalars().all()
+
+
+async def list_nearby_incidents(
+    session: AsyncSession,
+    point: GeoPoint,
+    radius_m: float,
+    urgencies: Sequence[Urgency],
+    limit: int,
+) -> list[tuple[Incident, float]]:
+    """Active incidents of the given urgencies within the radius, closest first, with meters."""
+    query = (
+        select(Incident, distance_meters(Incident.location, point))
+        .where(
+            within_distance(Incident.location, point, radius_m),
+            Incident.status.in_(ACTIVE_STATUSES),
+            Incident.urgency.in_(urgencies),
+        )
+        .order_by(distance_meters(Incident.location, point))
+        .limit(limit)
+    )
+    return [
+        (incident, float(distance)) for incident, distance in (await session.execute(query)).all()
+    ]

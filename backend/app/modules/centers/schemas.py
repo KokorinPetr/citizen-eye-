@@ -1,11 +1,12 @@
 import uuid
 from datetime import datetime
+from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 from app.modules.centers.enums import OFFICIAL_SOURCES, CenterSource, CenterStatus, CenterType
 from app.modules.incidents.enums import NeedType
-from app.shared.geo import DbPoint, GeoPoint
+from app.shared.geo import BBox, DbPoint, GeoPoint
 from app.shared.types import PhoneNumber
 
 
@@ -32,6 +33,16 @@ class CenterUpdate(BaseModel):
     phone: PhoneNumber | None = None
     capacity: int | None = Field(default=None, ge=0, le=100_000)
     supplies: list[NeedType] | None = None
+
+
+class CenterFilters(BaseModel):
+    """Map filters. Lists mean "any of"; empty means no filter."""
+
+    bbox: BBox | None = None
+    center_types: list[CenterType] = Field(default_factory=list)
+    statuses: list[CenterStatus] = Field(default_factory=list)
+    supplies: list[NeedType] = Field(default_factory=list)
+    official: bool | None = None
 
 
 class CenterRead(BaseModel):
@@ -87,3 +98,25 @@ class Hotline(BaseModel):
     name_local: str | None = None
     category: str
     area: str = Field(description='"nationwide" or a region, e.g. "Bangkok"')
+
+
+class RouteKind(StrEnum):
+    ROAD = "road"  # real road route from the routing service
+    STRAIGHT_LINE = "straight_line"  # routing unavailable: direct line, distance as the crow flies
+
+
+class RouteRead(BaseModel):
+    kind: RouteKind
+    distance_m: int
+    duration_s: int | None = Field(description="null for straight lines")
+    path: list[tuple[float, float]] = Field(description="[[lat, lng], ...], draw as a polyline")
+
+
+class CenterWithRoute(BaseModel):
+    center: CenterNearby
+    route: RouteRead
+
+
+class NearestRoutes(BaseModel):
+    warning: str
+    routes: list[CenterWithRoute]

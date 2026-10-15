@@ -1,4 +1,7 @@
 from functools import lru_cache
+from typing import Annotated
+
+from fastapi import Depends
 
 from app.core.config import get_settings
 from app.integrations.ai.connector import AIConnector
@@ -25,3 +28,6 @@ def get_ai_connector() -> AIConnector:
         timeout_seconds=settings.ai_timeout_seconds,
         max_tokens=settings.ai_max_tokens,
     )
+
+
+AIConnectorDep = Annotated[AIConnector, Depends(get_ai_connector)]

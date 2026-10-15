@@ -13,7 +13,6 @@ from app.modules.incidents import repository
 from app.modules.incidents.enums import (
     ACTIVE_STATUSES,
     IncidentStatus,
-    NeedType,
     ReportStatus,
     TaskRole,
     TaskStatus,
@@ -23,13 +22,17 @@ from app.modules.incidents.magnitude import calculate_incident_magnitude, calcul
 from app.modules.incidents.merge_rules import matching_need_types, max_optional, max_urgency
 from app.modules.incidents.models import Incident, IncidentReport, IncidentTask
 from app.modules.incidents.schemas import (
+    AreaAlert,
     IncidentCreate,
+    IncidentFilters,
+    IncidentMapItem,
     IncidentReportRead,
     IncidentUpdate,
+    NearbyIncident,
     ReportMeta,
     TaskCreate,
 )
-from app.shared.geo import BBox, GeoPoint, ensure_in_service_area, to_db_point
+from app.shared.geo import GeoPoint, ensure_in_service_area, to_db_point
 
 DEFAULT_TASK = TaskCreate(title="Help on site", role=TaskRole.GENERAL, needed_count=1)
 
@@ -41,16 +44,11 @@ async def get_incident_or_raise(session: AsyncSession, incident_id: uuid.UUID) -
     return incident
 
 
-async def list_incidents(
-    session: AsyncSession,
-    bbox: BBox | None,
-    statuses: Sequence[IncidentStatus] | None,
-    need_type: NeedType | None,
-) -> Sequence[Incident]:
+async def list_incidents(session: AsyncSession, filters: IncidentFilters) -> Sequence[Incident]:
     """Map listing. Without a status filter, resolved incidents are hidden."""
-    return await repository.list_incidents(
-        session, statuses=statuses or ACTIVE_STATUSES, bbox=bbox, need_type=need_type
-    )
+    if not filters.statuses:
+        filters = filters.model_copy(update={"statuses": list(ACTIVE_STATUSES)})
+    return await repository.list_incidents(session, filters)
 
 
 async def create_incident(
@@ -333,4 +331,33 @@ def ensure_can_manage_incident(user: User, incident: Incident) -> None:
     """Owner, coordinators and admins can edit, resolve, reopen and delete."""
     ensure_owner_or_manager(
         user, incident.owner_id, "Only the owner or a coordinator can manage this incident"
+    )
+
+
+ALERT_URGENCIES = (Urgency.HIGH, Urgency.CRITICAL)
+ALERT_MAX_INCIDENTS = 5
+
+
+async def get_area_alert(session: AsyncSession, point: GeoPoint) -> AreaAlert:
+    """Active high/critical incidents within ALERT_RADIUS_M of the point."""
+    radius_m = get_settings().alert_radius_m
+    rows = await repository.list_nearby_incidents(
+        session, point, radius_m, ALERT_URGENCIES, ALERT_MAX_INCIDENTS
+    )
+    incidents = [
+        NearbyIncident(
+            **IncidentMapItem.model_validate(incident).model_dump(exclude={"magnitude_level"}),
+            distance_m=round(distance),
+        )
+        for incident, distance in rows
+    ]
+    message = None
+    if incidents:
+        closest = incidents[0]
+        message = (
+            f"Emergency nearby: {closest.title} ({closest.distance_m} m away). "
+            "Open Emergency mode to see what is needed."
+        )
+    return AreaAlert(
+        active=bool(incidents), radius_m=radius_m, message=message, incidents=incidents
     )

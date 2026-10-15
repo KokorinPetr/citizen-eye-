@@ -18,6 +18,9 @@ from app.modules.auth.models import User
 from app.modules.centers import service as centers_service
 from app.modules.centers.models import Center
 from app.modules.centers.schemas import CenterCreate
+from app.modules.community import service as community_service
+from app.modules.community.models import CommunityPost
+from app.modules.community.schemas import PostCreate, ResponseCreate
 from app.modules.incidents import service as incidents_service
 from app.modules.incidents.enums import ReportSource
 from app.modules.incidents.models import Incident
@@ -66,6 +69,10 @@ async def seed_demo_data() -> None:
         # Sign-ups are removed together with the incidents (cascade).
         await session.execute(delete(Incident).where(Incident.owner_id == owner.id))
         await session.execute(delete(Center).where(Center.owner_id == owner.id))
+        demo_user_ids = [owner.id, *(volunteer.id for volunteer in volunteers)]
+        await session.execute(
+            delete(CommunityPost).where(CommunityPost.owner_id.in_(demo_user_ids))
+        )
         await session.commit()
 
         incidents = [
@@ -88,6 +95,18 @@ async def seed_demo_data() -> None:
                 volunteers[item["volunteer"]],
                 ReportMeta(source=ReportSource.SEED, raw_text=item["summary"]),
             )
+        for item in seed["community_posts"]:
+            fields = {k: v for k, v in item.items() if k not in ("author", "responders")}
+            post = await community_service.create_post(
+                session, PostCreate.model_validate(fields), volunteers[item["author"]]
+            )
+            for responder in item.get("responders", []):
+                await community_service.respond_to_post(
+                    session,
+                    post.id,
+                    ResponseCreate(message="I think I can help, sending you a message."),
+                    volunteers[responder],
+                )
         for item in seed["signups"]:
             incident = incidents[item["incident"]]
             task_id = incident.tasks[item["task"]].id if "task" in item else None
@@ -98,7 +117,8 @@ async def seed_demo_data() -> None:
     await engine.dispose()
     print(
         f"Seeded {len(seed['incidents'])} incidents (+{len(seed['followup_reports'])} merged "
-        f"follow-up reports), {len(seed['centers'])} centers, {len(seed['signups'])} sign-ups."
+        f"follow-up reports), {len(seed['centers'])} centers, {len(seed['signups'])} sign-ups, "
+        f"{len(seed['community_posts'])} community posts."
     )
     print(f"Logins (password for all: {DEMO_PASSWORD}):")
     print(f"  coordinator: {DEMO_EMAIL}")

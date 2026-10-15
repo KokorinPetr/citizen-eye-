@@ -30,9 +30,11 @@ make dev
 Next time (deps and `.env` already set up):
 
 ```bash
-make db-up      # 1. start the database
-make run        # 2. start the API
+make run        # starts the database container if needed, then the API
 ```
+
+Every command that needs the database (`run`, `migrate`, `seed`, `test`, `centers-load`, …) starts
+it automatically, so it doesn't matter if you stopped everything with `docker compose down`.
 
 Stop:
 
@@ -40,6 +42,23 @@ Stop:
 Ctrl+C          # stop the API
 make db-down    # stop the database (data is kept)
 ```
+
+### Option C — everything in Docker (no uv/Python needed)
+
+For frontend developers, the demo fallback, or anyone who just needs the API running:
+
+```bash
+cd backend
+docker compose up -d --build --wait    # or: make docker-up   → API on http://localhost:8000
+make docker-seed                       # demo data + official places (first time)
+```
+
+- The API image is built from the current code; **migrations run automatically on every start**.
+- Settings come from `.env` if it exists (AI key etc.); without it, local defaults are used.
+- `API_PORT=8090 docker compose up -d` if port 8000 is busy. Stop: `make docker-down`.
+- First build downloads the Python image (can take a few minutes on slow internet); later builds
+  reuse the cache and only rebuild what changed.
+- Don't run `make run` and the API container on the same port at the same time.
 
 ### Option B — manual, with uv
 
@@ -157,15 +176,34 @@ Talking points for the pitch, with what to show live (`make seed`, `/dev/map`, `
 4. **Anti-abuse built in.** One person can't inflate an incident (sources, not reports), volunteers
    can only close their own tasks, max 2 active sign-ups, and a wrongly resolved incident reopens
    when someone reports it again.
-5. **Our own data layer.** ~3,000 official hospitals, fire stations and police from OpenStreetMap
+5. **Routes to help.** On an incident, "Show routes" draws road routes to the nearest shelters /
+   hospitals with distance and time (OSRM), with a clear "roads may be flooded" warning, and falls
+   back to straight lines if routing is down.
+6. **Our own data layer.** ~3,000 official hospitals, fire stations and police from OpenStreetMap
    (with source links) plus community shelters and supply points. Every incident shows the nearest
    hospital and shelter with distance and phone. Hotlines: `GET /hotlines`.
-6. **Privacy.** Contact phones only for logged-in users; report history shows AI summaries, never
+7. **Privacy.** Contact phones only for logged-in users; report history shows AI summaries, never
    raw messages.
-7. **Resilient.** If the AI is down, reports still reach the map with default fields; the demo
+8. **Resilient.** If the AI is down, reports still reach the map with default fields; the demo
    data and official places load from saved snapshots, no live scraping on stage.
 
+9. **Daily use → ready for disasters.** The Community tab (lost & found pets and items, help
+   wanted/offered, optional rewards) gives people a reason to open the app every week. When a flood
+   comes, it is already installed and trusted; a red banner switches them to Emergency mode
+   (`/dev/map` → 🏘 Community, near Mae Sai).
+
 State clearly in the demo that the incident data is **synthetic**.
+
+## Business model (pitch, not implemented)
+
+Emergency features stay free. Revenue comes from the everyday Community board:
+- **Commission on rewards and paid help** (e.g. 5%: the API already returns
+  `platform_fee_preview`). Today people settle rewards themselves (cash, PromptPay QR); later the
+  payment goes through a Thai provider (Omise / 2C2P with PromptPay) and the fee is taken automatically.
+- **Boosted posts** ("show my lost cat to more people").
+- **Local business listings and ads** (vets, pet shops, repair services), possible because people
+  use the app daily.
+No payment provider is integrated in the MVP on purpose.
 
 ## Everyday commands
 
@@ -187,7 +225,28 @@ State clearly in the demo that the incident data is **synthetic**.
 | `make downgrade`                   | `uv run alembic downgrade -1`                          | Undo the last migration               |
 | `make db-shell`                    | `docker exec -it civic-eye-db psql -U civic_eye -d civic_eye` | Open psql                      |
 | `make db-logs`                     | `docker compose logs -f db`                            | Database logs                         |
+| `make docker-up` / `make docker-down` | `docker compose up -d --build --wait` / `docker compose down` | Whole backend in Docker |
+| `make docker-seed`                 | `docker compose exec api python -m scripts.seed_demo` (+ centers load) | Demo data into the Docker backend |
+| `make docker-logs`                 | `docker compose logs -f api`                           | API container logs                    |
 | `make db-reset`                    | `docker compose down -v && docker compose up -d --wait && uv run alembic upgrade head` | **Delete all data** and start fresh |
+
+## Adding, changing or removing features
+
+The backend is a modular monolith (see `ARCHITECTURE.md`): each feature is a folder in
+`app/modules/`. Typical change:
+
+1. **Code:** add/edit a module (`router.py`, `schemas.py`, `models.py`, `repository.py`,
+   `service.py`); register a new router in `app/api.py` and new models in `app/models.py`.
+2. **Database:** `make migration m="what changed"` → review the file in `migrations/versions/` →
+   `make migrate`. Removing a table/column = a migration too (Alembic ignores tables it doesn't know,
+   so write `op.drop_table` by hand for removed tables).
+3. **Tests:** add tests next to the others in `tests/modules/<module>/`, then `make check`.
+4. **Docs:** update `../FRONTEND_INTEGRATION.md` if endpoints or fields changed.
+5. **Ship:** push. The Docker image is rebuilt from the code and runs `alembic upgrade head` on
+   start, so the database is updated automatically on every deploy.
+
+Rules that keep this safe: modules talk only through `service.py`; config comes from env vars
+(`app/core/config.py`); external services sit behind `app/integrations/` and can be swapped.
 
 ## Troubleshooting
 

@@ -14,7 +14,7 @@ from app.modules.incidents.enums import (
     Urgency,
 )
 from app.modules.incidents.magnitude import get_magnitude_level
-from app.shared.geo import DbPoint, GeoPoint
+from app.shared.geo import BBox, DbPoint, GeoPoint
 from app.shared.types import PhoneNumber
 
 
@@ -79,6 +79,16 @@ class IncidentUpdate(BaseModel):
     location: GeoPoint | None = None
     location_text: str | None = Field(default=None, max_length=300)
     contact_phone: PhoneNumber | None = None
+
+
+class IncidentFilters(BaseModel):
+    """Map filters. Lists mean "any of"; empty means no filter."""
+
+    bbox: BBox | None = None
+    statuses: list[IncidentStatus] = Field(default_factory=list)
+    need_types: list[NeedType] = Field(default_factory=list)
+    urgencies: list[Urgency] = Field(default_factory=list)
+    verified: bool | None = None
 
 
 class IncidentMapItem(BaseModel):
@@ -150,3 +160,16 @@ class IncidentReportRead(BaseModel):
             people_affected=report.people_affected,
             summary=summary,
         )
+
+
+class NearbyIncident(IncidentMapItem):
+    distance_m: int
+
+
+class AreaAlert(BaseModel):
+    """Is there an emergency near this point? Used to switch the app to Emergency mode."""
+
+    active: bool
+    radius_m: int
+    message: str | None
+    incidents: list[NearbyIncident] = Field(description="Closest first, max 5")

@@ -7,6 +7,10 @@ We work **only in `/backend`**. Do not edit `/frontend` or other folders unless 
 Civic Eye is a hackathon web app (U Hackathon, AI track) for coordinating flood response in Thailand.
 
 - Covers **all of Thailand** (north, south and Bangkok are the most affected).
+- Two parts in one app: **Emergency** (incidents, volunteers, shelters, hospitals) and **Community**
+  (everyday board: lost/found pets and items, help wanted/offered, optional reward). Community keeps
+  people using the app daily, so it is installed and trusted when a disaster happens. `GET /alerts`
+  tells the Community screen to switch to Emergency when something urgent is nearby.
 - People report problems in free text (Thai, English or Russian), optionally with a photo.
 - An AI model (through our connector layer) turns each report into a structured incident: location, need type
   (evacuation, food, medicine, boat, other), urgency, people needed and tasks with roles.
@@ -68,6 +72,8 @@ uv run pytest                             # tests use the civic_eye_test db
   `uv run alembic upgrade head`. Register new module models in `app/models.py`. Alembic ignores DB
   tables we don't define (PostGIS/tiger), so dropping one of ours needs a manual `op.drop_table`.
 - DB sessions: services call `await session.commit()` explicitly; repositories only `flush()`.
+- Docker: `Dockerfile` + `docker/start.sh` (runs migrations, then uvicorn). New runtime files must
+  not be excluded by `.dockerignore`; new env vars must be added to `docker-compose.yml` (api) and `.env.example`.
 
 ## Python tooling: use `uv` only
 

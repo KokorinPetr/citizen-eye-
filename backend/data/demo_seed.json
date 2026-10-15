@@ -338,5 +338,91 @@
       "people_affected": 6,
       "summary": "Neighbour confirms: family still on the second floor."
     }
+  ],
+  "_community_note": "Community board posts (SYNTHETIC). author = volunteer index; responders = volunteer indexes.",
+  "community_posts": [
+    {
+      "author": 1,
+      "category": "lost_pet",
+      "title": "Lost white cat Mali",
+      "description": "White cat with a blue collar, ran away near Soi 12 yesterday evening. Very shy.",
+      "details": {
+        "species": "cat",
+        "colour": "white",
+        "name": "Mali",
+        "collar": "blue"
+      },
+      "location": {
+        "lat": 13.816,
+        "lng": 100.5625
+      },
+      "location_text": "Soi Lat Phrao 12",
+      "reward_amount": 2000,
+      "reward_note": "PromptPay QR when found",
+      "responders": [
+        0
+      ]
+    },
+    {
+      "author": 2,
+      "category": "found_pet",
+      "title": "Found friendly brown dog",
+      "description": "Brown dog without a collar near the market, now safe at my house.",
+      "details": {
+        "species": "dog",
+        "colour": "brown"
+      },
+      "location": {
+        "lat": 13.91,
+        "lng": 100.605
+      },
+      "location_text": "Don Mueang market"
+    },
+    {
+      "author": 0,
+      "category": "help_wanted",
+      "title": "Help carrying groceries to 3rd floor",
+      "description": "My grandmother has bad knees and lives on the 3rd floor, no lift. Need help on Saturday morning.",
+      "location": {
+        "lat": 13.7655,
+        "lng": 100.646
+      },
+      "location_text": "Bang Kapi",
+      "responders": [
+        2
+      ]
+    },
+    {
+      "author": 2,
+      "category": "help_offered",
+      "title": "Pickup truck available for moving",
+      "description": "Can help move furniture or bring supplies in Chiang Mai on weekends.",
+      "details": {
+        "vehicle": "pickup truck"
+      },
+      "location": {
+        "lat": 18.796,
+        "lng": 98.97
+      },
+      "location_text": "Chiang Mai old city",
+      "reward_amount": 300,
+      "reward_note": "fuel money"
+    },
+    {
+      "author": 1,
+      "category": "lost_item",
+      "title": "Lost black wallet",
+      "description": "Black leather wallet with ID card, lost near the clock tower.",
+      "details": {
+        "item": "wallet",
+        "colour": "black"
+      },
+      "location": {
+        "lat": 7.008,
+        "lng": 100.476
+      },
+      "location_text": "Hat Yai clock tower",
+      "reward_amount": 500
+    }
   ]
 }

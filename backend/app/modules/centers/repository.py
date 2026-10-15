@@ -4,10 +4,10 @@ from collections.abc import Sequence
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.centers.enums import CenterSource, CenterStatus, CenterType
+from app.modules.centers.enums import OFFICIAL_SOURCES, CenterSource, CenterStatus, CenterType
 from app.modules.centers.models import Center
-from app.modules.incidents.enums import NeedType
-from app.shared.geo import BBox, GeoPoint, distance_meters, order_by_nearest, within_bbox
+from app.modules.centers.schemas import CenterFilters
+from app.shared.geo import GeoPoint, distance_meters, order_by_nearest, within_bbox
 
 MAP_ITEMS_LIMIT = 500
 
@@ -16,22 +16,19 @@ async def get_center(session: AsyncSession, center_id: uuid.UUID) -> Center | No
     return await session.get(Center, center_id)
 
 
-async def list_centers(
-    session: AsyncSession,
-    bbox: BBox | None = None,
-    center_types: Sequence[CenterType] | None = None,
-    status: CenterStatus | None = None,
-    supply: NeedType | None = None,
-) -> Sequence[Center]:
+async def list_centers(session: AsyncSession, filters: CenterFilters) -> Sequence[Center]:
     query = select(Center)
-    if bbox is not None:
-        query = query.where(within_bbox(Center.location, bbox))
-    if center_types:
-        query = query.where(Center.center_type.in_(center_types))
-    if status is not None:
-        query = query.where(Center.status == status)
-    if supply is not None:
-        query = query.where(Center.supplies.contains([supply.value]))
+    if filters.bbox is not None:
+        query = query.where(within_bbox(Center.location, filters.bbox))
+    if filters.center_types:
+        query = query.where(Center.center_type.in_(filters.center_types))
+    if filters.statuses:
+        query = query.where(Center.status.in_(filters.statuses))
+    if filters.supplies:
+        query = query.where(Center.supplies.overlap([supply.value for supply in filters.supplies]))
+    if filters.official is not None:
+        is_official = Center.source.in_(OFFICIAL_SOURCES)
+        query = query.where(is_official if filters.official else ~is_official)
     result = await session.execute(query.order_by(Center.name).limit(MAP_ITEMS_LIMIT))
     return result.scalars().all()
 

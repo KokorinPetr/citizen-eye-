@@ -3,7 +3,9 @@
 How the frontend talks to the backend. The backend only returns **JSON**. The map, design and
 markers are entirely the frontend's choice.
 
-- Local API: `http://localhost:8000` (start it: `cd backend && make dev`, see `backend/README.md`)
+- Local API: `http://localhost:8000`. Easiest way to run it, with only Docker installed:
+  `cd backend && docker compose up -d --build --wait && make docker-seed`
+  (or `make dev` with uv; see `backend/README.md`)
 - Interactive docs: `http://localhost:8000/docs`
 - OpenAPI schema: `http://localhost:8000/openapi.json` (the source of truth for every type)
 - Reference map: `http://localhost:8000/dev/map` (a small Leaflet page that uses this API, handy to copy from)
@@ -137,8 +139,16 @@ Coordinates are always `{ "lat": 13.75, "lng": 100.5 }`. Leaflet takes `[lat, ln
 | `helpers_signed_up` / `helpers_needed` | Badge "2 / 4 helpers" |
 | `report_count` / `source_count` / `is_verified` | "3 reports from 2 people · ✔ verified" (verified = 2+ independent people) |
 
-Filters: `&need_type=food`, `&status=open&status=in_progress` (repeatable). Without `status`,
-resolved incidents are hidden. Results are sorted biggest first (max 500).
+Filters (all optional, combine freely; repeatable ones mean "any of"):
+
+| Param | Example | Note |
+| --- | --- | --- |
+| `need_type` | `&need_type=boat&need_type=evacuation` | repeatable |
+| `urgency` | `&urgency=critical&urgency=high` | repeatable |
+| `status` | `&status=open&status=in_progress` | repeatable; default hides `resolved` |
+| `verified` | `&verified=true` | verified only |
+
+Results are sorted biggest first (max 500).
 
 ### Centers layer: `GET /centers` item (`CenterRead`)
 Shelters and supply points (created by users) plus official places later.
@@ -149,7 +159,19 @@ Shelters and supply points (created by users) plus official places later.
   "supplies": ["food", "water", "shelter", "medical"], "is_official": false, "description": "…"
 }
 ```
-Filters: `&center_type=shelter&center_type=supply_point`, `&status=open`, `&supply=medicine`
+Filters (all optional, combine freely; repeatable ones mean "any of"):
+
+| Param | Example | Note |
+| --- | --- | --- |
+| `center_type` | `&center_type=shelter&center_type=fire_station` | repeatable |
+| `status` | `&status=open` | repeatable |
+| `supply` | `&supply=food&supply=water` | places that provide any of these |
+| `official` | `&official=true` / `false` | official only / community only |
+
+**Suggested UI (frontend):** a layer panel with toggles that map 1:1 to these params, e.g.
+"Shelters" → `center_type=shelter`, "Hospitals" → `center_type=hospital`, "Fire stations" →
+`center_type=fire_station`, "Supply points" → `center_type=supply_point`, plus need-type and
+urgency chips for incidents. Keep the toggle state in the URL so a filtered map can be shared.
 
 Two kinds of places in the same endpoint:
 - **Community** (`is_official: false`): shelters and supply points created by users.
@@ -163,6 +185,27 @@ GET /centers/nearest?lat=7.0086&lng=100.4747&center_type=hospital&limit=1
 → [ { ...CenterRead, "distance_m": 1075 } ]
 ```
 Closest first, closed places skipped. Use it on the incident card ("🏥 Rajyindee Hospital · 1.1 km").
+
+### Routes to the nearest places (on button press only)
+```
+GET /centers/nearest/routes?lat=7.0086&lng=100.4747&center_type=shelter&limit=3
+→ {
+  "warning": "Routes use normal road data and do not know which roads are flooded. …",
+  "routes": [
+    { "center": { ...CenterNearby },
+      "route": { "kind": "road", "distance_m": 1702, "duration_s": 156,
+                 "path": [[7.0087, 100.4747], [7.0091, 100.4743], ...] } }
+  ]
+}
+```
+- Sorted by **road** distance. `limit` max 3. `center_type` is repeatable (e.g. shelter + hospital).
+- `path` is `[lat, lng]` pairs: `L.polyline(route.path)` draws it directly.
+- `kind: "straight_line"` means the routing service was unavailable: draw it **dashed**,
+  `duration_s` is `null`, `distance_m` is the straight distance.
+- **Always show `warning`** near the routes: routing doesn't know which roads are flooded.
+- **UX:** call it only when the user taps "Show routes" on the incident card (it queries an
+  external service and takes ~1 s), not on map load or polling. Show a spinner, then fit the map
+  to the routes; tapping a route selects that place.
 
 ### Hotlines
 `GET /hotlines` → `[{ "number": "1669", "name": "Medical emergency / ambulance", "name_local": "เจ็บป่วยฉุกเฉิน", "category": "medical", "area": "nationwide" }, ...]`.
@@ -317,6 +360,80 @@ POST /centers
 ```
 The owner keeps it current: `PATCH /centers/{id}` `{status: "full", supplies: [...]}`. Delete: `DELETE /centers/{id}`.
 
+## 6b. Community board (everyday part of the app)
+
+Two modes in the UI on the **same map component**: **🆘 Emergency** (incidents, shelters,
+hospitals…) and **🏘 Community** (only community posts: no hospitals or incidents on this layer).
+
+### Switching modes: `GET /alerts`
+```
+GET /alerts?lat=<map centre or user>&lng=...
+→ { "active": true, "radius_m": 5000,
+    "message": "Emergency nearby: Family of 6 stuck on second floor (383 m away). …",
+    "incidents": [ { ...IncidentMapItem, "distance_m": 383 } ] }
+```
+Public. Poll it from the Community screen (e.g. every 30–60 s and on map move). `active: true` →
+show a red banner with `message`; tapping it switches to Emergency mode and opens the incident.
+
+### Posts
+```
+GET /community/posts?bbox=...&category=lost_pet&category=found_pet&has_reward=true
+→ [ PostRead ]          (public; default: open + matched, not expired; newest first)
+```
+| Filter | Example | Note |
+| --- | --- | --- |
+| `category` | `&category=lost_pet&category=help_wanted` | repeatable |
+| `status` | `&status=closed` | default `open` + `matched` |
+| `has_reward` | `true` / `false` | |
+| `owner_id` | `<me.id>` | "My posts" |
+| `include_expired` | `true` | posts expire after 30 days |
+
+`PostRead`:
+```json
+{ "id": "…", "category": "lost_pet", "status": "open",
+  "title": "Lost white cat Mali", "description": "…",
+  "details": { "species": "cat", "colour": "white", "name": "Mali" },
+  "location": { "lat": 13.816, "lng": 100.5625 }, "location_text": "Soi Lat Phrao 12",
+  "reward_amount": 2000, "reward_note": "PromptPay QR when found", "platform_fee_preview": 100,
+  "contact_phone": null, "owner": { "id": "…", "full_name": "Malee", "has_vehicle": false },
+  "response_count": 1, "expires_at": "…", "closed_at": null, "created_at": "…", "updated_at": "…" }
+```
+- Suggested map icons by category: 🐾 lost_pet, 🐶 found_pet, 👛 lost_item, 🔑 found_item,
+  🙋 help_wanted, 🤝 help_offered, 📌 other.
+- `reward_amount` is optional (help can be free). `platform_fee_preview` is for the pitch only:
+  nothing is charged; people settle rewards themselves (e.g. PromptPay QR).
+- `contact_phone` is `null` for anonymous viewers.
+
+### Create a post (login required)
+Optional AI draft from free text (like reports):
+```
+POST /community/posts/preview  { "text": "แมวสีขาวชื่อมะลิหายแถวซอย 12 ให้รางวัล 2000 บาท" }
+→ { "category": "lost_pet", "title": "...", "description": "...", "details": {...},
+    "location_text": "...", "reward_amount": 2000, "reward_note": null, "language": "th" }
+```
+Show it as an editable form, add the pin, then:
+```
+POST /community/posts
+{ "category": "lost_pet", "title": "Lost white cat Mali", "description": "...",
+  "details": { "species": "cat" }, "location": { "lat": 13.816, "lng": 100.5625 },
+  "location_text": "Soi 12", "reward_amount": 2000, "reward_note": "PromptPay QR when found",
+  "contact_phone": "+66 81 555 0000" }
+```
+Author actions: `PATCH /community/posts/{id}` (any field), `POST /community/posts/{id}/close`
+(solved / withdrawn), `DELETE /community/posts/{id}`.
+
+### Responses ("I found it" / "I can help")
+| Action | Request | Who |
+| --- | --- | --- |
+| Respond | `POST /community/posts/{id}/responses` `{ "message": "Saw her near 7-Eleven" }` | logged in, not the author; post must be open |
+| List | `GET /community/posts/{id}/responses` | author/coordinator: all; others: only their own |
+| Accept one | `POST /community/posts/{id}/responses/{rid}/accept` | author → post `matched`, other pending → `declined` |
+| Withdraw | `DELETE /community/posts/{id}/responses/{rid}` | the responder (if accepted, post becomes `open` again) |
+
+Response: `{ id, post_id, user: {id, full_name, has_vehicle}, message, status, created_at }`,
+status `pending | accepted | declined | withdrawn`. Responses are private (the public only sees
+`response_count`), so messages work as a simple inbox for the author.
+
 ## 7. Enum values
 
 | Enum | Values |
@@ -330,6 +447,9 @@ The owner keeps it current: `PATCH /centers/{id}` `{status: "full", supplies: [.
 | `center_type` | `shelter`, `supply_point`, `hospital`, `fire_station`, `police`, `other` |
 | center `status` | `open`, `full`, `closed`, `unknown` |
 | user `role` | `user`, `coordinator`, `admin` |
+| post `category` | `lost_pet`, `found_pet`, `lost_item`, `found_item`, `help_wanted`, `help_offered`, `other` |
+| post `status` | `open`, `matched`, `closed` |
+| response `status` | `pending`, `accepted`, `declined`, `withdrawn` |
 
 ## 8. Demo data
 

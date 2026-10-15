@@ -1,8 +1,9 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import SecretStr
+from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from sqlalchemy.engine import make_url
 
 
 class Settings(BaseSettings):
@@ -13,7 +14,7 @@ class Settings(BaseSettings):
     app_name: str = "Civic Eye API"
     environment: Literal["local", "test", "production"] = "local"
 
-    database_url: str
+    database_url: str  # any postgres URL; normalized for asyncpg below
     cors_origins: list[str] = ["http://localhost:5173"]
 
     jwt_secret_key: SecretStr
@@ -39,6 +40,11 @@ class Settings(BaseSettings):
     # Volunteers
     max_active_signups: int = 2
 
+    # Community board
+    community_post_ttl_days: int = 30  # open posts disappear from the board after this
+    # Emergency alert: active high/critical incidents within this radius switch the app to Emergency
+    alert_radius_m: int = 5000
+
     # AI (see app/integrations/ai). Empty AI_API_KEY → AI calls fail and reports use the fallback.
     ai_provider: Literal["deepseek", "openai", "fake"] = "fake"
     ai_model: str = "deepseek-flash"  # DeepSeek: deepseek-flash (fast) or deepseek-v4-pro
@@ -48,6 +54,17 @@ class Settings(BaseSettings):
     ai_timeout_seconds: float = 30.0
     ai_max_tokens: int = 1500  # DeepSeek JSON mode: too low cuts the JSON off
 
+    # Road routes (OSRM). The public demo server is fine for on-demand demo use only.
+    routing_base_url: str = "https://router.project-osrm.org"
+    routing_profile: str = "driving"
+    routing_timeout_seconds: float = 10.0
+    max_routes_per_request: int = 3
+
+    @field_validator("database_url")
+    @classmethod
+    def normalize_database_url(cls, value: str) -> str:
+        return to_asyncpg_url(value)
+
     @property
     def resolved_ai_api_key(self) -> str | None:
         """First non-empty of AI_API_KEY, DEEPSEEK_API_KEY."""
@@ -55,6 +72,25 @@ class Settings(BaseSettings):
             if key and key.get_secret_value().strip():
                 return key.get_secret_value().strip()
         return None
+
+
+ASYNCPG_UNSUPPORTED_PARAMS = ("sslmode", "channel_binding")
+
+
+def to_asyncpg_url(url: str) -> str:
+    """Accept URLs as hosting providers show them (Neon, Render, Supabase):
+    `postgres://…?sslmode=require&channel_binding=require` → `postgresql+asyncpg://…?ssl=require`.
+    """
+    parsed = make_url(url)
+    if parsed.drivername in ("postgres", "postgresql"):
+        parsed = parsed.set(drivername="postgresql+asyncpg")
+    query = dict(parsed.query)
+    sslmode = query.get("sslmode")
+    for param in ASYNCPG_UNSUPPORTED_PARAMS:
+        query.pop(param, None)
+    if sslmode and sslmode != "disable" and "ssl" not in query:
+        query["ssl"] = "require"
+    return parsed.set(query=query).render_as_string(hide_password=False)
 
 
 @lru_cache

@@ -1,31 +1,12 @@
-from datetime import UTC, datetime
-
 from httpx import AsyncClient
 
 from app.core.database import session_factory
 from app.modules.auth.enums import UserRole
 from app.modules.centers import service as centers_service
 from app.modules.centers.enums import CenterSource
-from app.modules.centers.schemas import CenterImport
-from tests.helpers import auth_headers
+from tests.helpers import auth_headers, load_official, official
 
 HAT_YAI = {"lat": 7.0086, "lng": 100.4747}
-
-
-def official(name: str, lat: float, center_type: str = "hospital") -> CenterImport:
-    return CenterImport(
-        name=name,
-        center_type=center_type,
-        location={"lat": lat, "lng": 100.4747},
-        source=CenterSource.OSM,
-        source_url=f"https://www.openstreetmap.org/node/{abs(hash(name))}",
-        retrieved_at=datetime(2026, 10, 15, tzinfo=UTC),
-    )
-
-
-async def load_official(items: list[CenterImport]) -> int:
-    async with session_factory() as session:
-        return await centers_service.replace_official_centers(session, CenterSource.OSM, items)
 
 
 async def test_nearest_sorted_by_distance_with_meters(client: AsyncClient) -> None:

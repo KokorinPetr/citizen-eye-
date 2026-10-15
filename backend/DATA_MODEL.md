@@ -32,6 +32,9 @@ centers        (independent map layer)
 | `CenterType`     | `shelter`, `supply_point`, `hospital`, `fire_station`, `police`, `other` |
 | `CenterSource`   | `user`, `osm`, `bma`, `official`                                        |
 | `CenterStatus`   | `open`, `full`, `closed`, `unknown`                                     |
+| `PostCategory`   | `lost_pet`, `found_pet`, `lost_item`, `found_item`, `help_wanted`, `help_offered`, `other` |
+| `PostStatus`     | `open`, `matched`, `closed`                                             |
+| `ResponseStatus` | `pending`, `accepted`, `declined`, `withdrawn`                          |
 
 ## Tables
 
@@ -131,6 +134,31 @@ that calls `incidents.service`.
 | language        | text null         | detected by the AI: `th`, `en`, `ru`, ...     |
 | ai_provider     | text null         | e.g. `deepseek`; null if not parsed by AI     |
 | ai_model        | text null         | e.g. `deepseek-flash`                          |
+
+### `community_posts` (module: community)
+| Column          | Type              | Notes                                          |
+| --------------- | ----------------- | ---------------------------------------------- |
+| owner_id        | FK users          | login required to post                         |
+| category        | PostCategory      | lost/found pet, lost/found item, help wanted/offered, other |
+| status          | PostStatus        | `open` → `matched` → `closed`                  |
+| title, description | text           |                                                |
+| details         | jsonb             | category-specific facts, max 2000 chars        |
+| location        | geography(Point)  | pin                                            |
+| location_text   | text null         |                                                |
+| reward_amount   | int null          | THB, optional, display only                    |
+| reward_note     | text null         | "PromptPay QR when found", "free dinner"       |
+| contact_phone   | text null         | only for logged-in viewers                     |
+| response_count  | int               | active responses, recounted                    |
+| expires_at      | timestamptz       | created + 30 days; expired posts are hidden    |
+| closed_at       | timestamptz null  |                                                |
+
+### `community_responses` (module: community)
+| Column  | Type              | Notes                                              |
+| ------- | ----------------- | -------------------------------------------------- |
+| post_id | FK community_posts |                                                   |
+| user_id | FK users          | one active (pending/accepted) response per post    |
+| message | text              | private: author + responder only                   |
+| status  | ResponseStatus    | `pending`, `accepted`, `declined`, `withdrawn`     |
 
 ### `centers` (module: centers)
 | Column       | Type             | Notes                           |

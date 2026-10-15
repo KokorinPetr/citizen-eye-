@@ -77,10 +77,28 @@ Tick items `[x]` as they are done. Riskier work comes first. See `ARCHITECTURE.m
 - [x] Nearest hospital / shelter on the incident card (frontend calls `/centers/nearest`; dev map shows it)
 - [ ] Later: BMA shelter data (check floodsupport.bangkok.go.th for a JSON feed)
 
+## Phase 6b — Map filters and routes (backend)
+- [x] Incident filters: repeatable `need_type`, `urgency`, `status`, `verified`
+- [x] Center filters: repeatable `center_type`, `status`, `supply` (any of), `official`
+- [x] `GET /centers/nearest/routes` (OSRM road routes, parallel, sorted by road distance, straight-line fallback, flood warning)
+- [ ] Frontend: layer toggles + "Show routes" button (see FRONTEND_INTEGRATION.md)
+
+## Phase 6c — Community board (daily use)
+- [x] `community` module: posts (optional reward, details JSONB, 30-day expiry) + responses
+- [x] Author-only edit / close / delete; accept one response → matched; withdraw → open again
+- [x] Responses private to author + responder; contact phone only for logged-in users
+- [x] Filters: category, status, has_reward, owner (my posts), bbox; expired/closed hidden
+- [x] `POST /community/posts/preview` (AI draft from free text, login required)
+- [x] `GET /alerts` (urgent incidents within 5 km → switch to Emergency)
+- [x] Seed community posts; dev map Emergency | Community switch + alert banner
+- [ ] Frontend: Community tab, post form, responses inbox, alert banner
+- [ ] Later: payments / commission (Omise or 2C2P with PromptPay), boosted posts, local business listings
+
 ## Phase 7 — Demo and deploy
 - [x] `make seed` + realistic demo data across Thailand (`data/demo_seed.json`, synthetic)
 - [x] Dev map at `/dev/map`
-- [ ] Dockerfile for the backend; `docker compose up` runs API + DB
+- [x] Dockerfile for the backend; `docker compose up` runs API + DB (migrations on start, non-root, `make docker-*`)
+- [x] Hosted Postgres URLs (Neon `sslmode`, `postgres://`) normalized for asyncpg
 - [ ] Deploy (Render/Railway + Supabase/Neon), env vars, CORS origins
 - [ ] Wake the backend and run the full flow before the pitch
 

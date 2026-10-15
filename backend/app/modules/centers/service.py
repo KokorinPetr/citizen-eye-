@@ -1,4 +1,6 @@
+import asyncio
 import json
+import logging
 import uuid
 from collections.abc import Sequence
 from functools import lru_cache
@@ -6,23 +8,35 @@ from pathlib import Path
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings
 from app.core.exceptions import NotFoundError
+from app.integrations.routing import Router, RoutingError
 from app.modules.auth.models import User
 from app.modules.auth.permissions import ensure_owner_or_manager
 from app.modules.centers import repository
-from app.modules.centers.enums import CenterSource, CenterStatus, CenterType
+from app.modules.centers.enums import CenterSource, CenterType
 from app.modules.centers.models import Center
 from app.modules.centers.schemas import (
     CenterCreate,
+    CenterFilters,
     CenterImport,
     CenterNearby,
     CenterRead,
     CenterUpdate,
+    CenterWithRoute,
     Hotline,
+    NearestRoutes,
+    RouteKind,
+    RouteRead,
 )
-from app.modules.incidents.enums import NeedType
-from app.shared.geo import BBox, GeoPoint, ensure_in_service_area, to_db_point
+from app.shared.geo import GeoPoint, ensure_in_service_area, to_db_point
 
+logger = logging.getLogger(__name__)
+
+ROUTE_WARNING = (
+    "Routes use normal road data and do not know which roads are flooded. "
+    "Check local conditions before going."
+)
 HOTLINES_FILE = Path(__file__).resolve().parents[3] / "data" / "hotlines.json"
 MAX_NEAREST = 20
 
@@ -34,14 +48,8 @@ async def get_center_or_raise(session: AsyncSession, center_id: uuid.UUID) -> Ce
     return center
 
 
-async def list_centers(
-    session: AsyncSession,
-    bbox: BBox | None,
-    center_types: Sequence[CenterType] | None,
-    status: CenterStatus | None,
-    supply: NeedType | None,
-) -> Sequence[Center]:
-    return await repository.list_centers(session, bbox, center_types, status, supply)
+async def list_centers(session: AsyncSession, filters: CenterFilters) -> Sequence[Center]:
+    return await repository.list_centers(session, filters)
 
 
 async def create_center(session: AsyncSession, data: CenterCreate, owner: User) -> Center:
@@ -134,6 +142,41 @@ async def export_official_centers(
         )
         for center in centers
     ]
+
+
+async def list_routes_to_nearest(
+    session: AsyncSession,
+    router: Router,
+    start: GeoPoint,
+    center_types: Sequence[CenterType] | None,
+    limit: int,
+) -> NearestRoutes:
+    """Nearest places (straight-line KNN), then a road route to each, fetched in parallel,
+    sorted by road distance."""
+    limit = min(limit, get_settings().max_routes_per_request)
+    nearest = await list_nearest_centers(session, start, center_types, limit)
+    routes = await asyncio.gather(*(route_or_straight_line(router, start, c) for c in nearest))
+    results = [CenterWithRoute(center=c, route=r) for c, r in zip(nearest, routes, strict=True)]
+    # Closest by road first (the straight-line order can differ).
+    results.sort(key=lambda result: result.route.distance_m)
+    return NearestRoutes(warning=ROUTE_WARNING, routes=results)
+
+
+async def route_or_straight_line(
+    router: Router, start: GeoPoint, center: CenterNearby
+) -> RouteRead:
+    end = center.location
+    try:
+        route = await router.get_route(start, end)
+    except RoutingError as exc:
+        logger.warning("Routing failed, using a straight line: %s", exc)
+        return RouteRead(
+            kind=RouteKind.STRAIGHT_LINE,
+            distance_m=center.distance_m,
+            duration_s=None,
+            path=[(start.lat, start.lng), (end.lat, end.lng)],
+        )
+    return RouteRead(kind=RouteKind.ROAD, **route.model_dump())
 
 
 @lru_cache
