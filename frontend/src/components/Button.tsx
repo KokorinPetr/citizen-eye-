@@ -30,10 +30,20 @@ export function Button({ variant = "primary", icon, block = false, children, cla
 interface ButtonLinkProps extends CommonProps {
   to?: string;
   href?: string;
+  /** Open in a new tab / the other app (e.g. Google Maps), so the user doesn't leave ours. */
+  external?: boolean;
 }
 
 /** A link that looks like a button: `to` for app routes, `href` for tel: / external links. */
-export function ButtonLink({ variant = "primary", icon, block = false, children, to, href }: ButtonLinkProps) {
+export function ButtonLink({
+  variant = "primary",
+  icon,
+  block = false,
+  children,
+  to,
+  href,
+  external = false,
+}: ButtonLinkProps) {
   const content = (
     <>
       {icon && <Icon name={icon} size={20} />}
@@ -48,7 +58,11 @@ export function ButtonLink({ variant = "primary", icon, block = false, children,
     );
   }
   return (
-    <a href={href} className={classes(variant, block)}>
+    <a
+      href={href}
+      className={classes(variant, block)}
+      {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+    >
       {content}
     </a>
   );

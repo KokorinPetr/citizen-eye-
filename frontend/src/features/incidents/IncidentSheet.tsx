@@ -10,6 +10,7 @@ import { format, t } from "../../i18n";
 import { timeAgo } from "../../utils/format";
 import { useAuth } from "../auth/AuthProvider";
 import { NearestHelp } from "../centers/NearestHelp";
+import { RoutesPanel } from "../routes/RoutesPanel";
 import { URGENCY_COLOR } from "../map/meta";
 import { useIncident, useIncidentReports, useIncidentVolunteers } from "./api";
 import styles from "./IncidentSheet.module.css";
@@ -92,6 +93,7 @@ function IncidentDetails({ incident }: { incident: Incident }) {
 
       <Section title={t.incident.nearestHelp}>
         <NearestHelp point={incident.location} />
+        <RoutesPanel key={incident.id} from={incident.location} />
       </Section>
 
       <ReportHistory incidentId={incident.id} />

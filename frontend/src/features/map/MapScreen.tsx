@@ -5,6 +5,7 @@ import { TopBar } from "../../app/TopBar";
 import { LayerBar, ZoomHint } from "./LayerBar";
 import { CenterMarkers, IncidentMarkers, PostMarkers } from "./MapLayers";
 import styles from "./MapScreen.module.css";
+import { RouteLayer } from "../routes/RouteLayer";
 import { FocusController } from "./FocusController";
 import { MapResizer } from "./MapResizer";
 import { MapTracker } from "./MapTracker";
@@ -39,6 +40,7 @@ export function MapScreen() {
         <MapTracker />
         <MapResizer />
         <FocusController />
+        <RouteLayer />
         {mode === "emergency" ? (
           <>
             <CenterMarkers bbox={view.bbox} types={centerTypes} />

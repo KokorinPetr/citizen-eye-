@@ -138,7 +138,7 @@ npm run lint
 2. ✅ Ask for help: pin (fixed centre pin, "use my location") → text → AI check (editable) → result
    (incl. merged / rejected). ✅ Add a shelter / supply point (login required).
 3. Accounts: ✅ login / register / logout, ✅ "Me" with my sign-ups, ✅ token refresh on 401;
-   ✅ I'm going / cancel / mark task done (tap twice to confirm); ⬜ routes to nearest help.
+   ✅ I'm going / cancel / mark task done (tap twice to confirm); ✅ routes to nearest help (map lines, Navigate → Google Maps).
 4. ⬜ Community: respond, new post (AI draft), responses inbox, my posts.
 5. ⬜ Polish: marker clustering if needed, Thai texts.
 6. ✅ Deployed: one server behind Cloudflare (see ../deploy/README.md).

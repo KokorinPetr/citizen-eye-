@@ -7,6 +7,7 @@ import { ModeProvider } from "./app/ModeContext";
 import { router } from "./app/routes";
 import { AuthProvider } from "./features/auth/AuthProvider";
 import { MapViewProvider } from "./features/map/MapViewContext";
+import { RoutesProvider } from "./features/routes/RoutesContext";
 import "./styles/tokens.css";
 import "./styles/base.css";
 
@@ -22,7 +23,9 @@ createRoot(document.getElementById("root")!).render(
       <AuthProvider>
         <ModeProvider>
           <MapViewProvider>
-            <RouterProvider router={router} />
+            <RoutesProvider>
+              <RouterProvider router={router} />
+            </RoutesProvider>
           </MapViewProvider>
         </ModeProvider>
       </AuthProvider>

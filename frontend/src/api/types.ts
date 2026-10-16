@@ -22,6 +22,7 @@ export type Center = Schemas["CenterRead"];
 export type CenterNearby = Schemas["CenterNearby"];
 export type CenterType = Schemas["CenterType"];
 export type NearestRoutes = Schemas["NearestRoutes"];
+export type CenterWithRoute = Schemas["CenterWithRoute"];
 
 export type Post = Schemas["PostRead"];
 export type PostCategory = Schemas["PostCategory"];

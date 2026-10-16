@@ -92,6 +92,15 @@ export const en = {
     resolved: "Everything is done. This request is resolved.",
     youAreOwner: "You asked for this help. You can mark tasks as done.",
   },
+  routes: {
+    show: "Show routes",
+    hide: "Hide routes",
+    loading: "Finding routes…",
+    byRoad: "{distance} by road, about {minutes} min",
+    straight: "{distance} in a straight line (road route unavailable)",
+    navigate: "Navigate",
+    none: "No open shelter, supply point or hospital found nearby.",
+  },
   center: {
     type: {
       shelter: "Shelter",
