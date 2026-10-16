@@ -23,6 +23,10 @@ export const en = {
     open: "See what is needed",
     dismiss: "Hide alerts for {minutes} minutes",
   },
+  map: {
+    locateMe: "Show where I am",
+    locationError: "Couldn't find you. Allow location for this site, or move the map by hand.",
+  },
   layers: {
     needHelp: "Need help",
     shelters: "Shelters",
@@ -286,7 +290,7 @@ export const en = {
     helpWanted: "Ask neighbours for a favour",
     helpWantedHint: "Carry something heavy, look after a pet, fix a roof…",
     postOnFeed: "Post on the Feed",
-    postOnFeedHint: "Complain, ask or just chat with neighbours.",
+    postOnFeedHint: "Discuss, ask or just chat with neighbours.",
     helpOffered: "Offer help",
     helpOfferedHint: "Something you can do or share with neighbours.",
     postWhat: "Tell neighbours about it",

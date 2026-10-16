@@ -1,0 +1,60 @@
+/* Bottom right of the map; detail sheets (higher z-index) cover it while open. */
+.wrap {
+  position: absolute;
+  right: var(--space-4);
+  bottom: var(--space-4);
+  z-index: var(--z-overlay);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.button {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--blue-600);
+  box-shadow: var(--elevation-2);
+  cursor: pointer;
+}
+
+.button:hover {
+  box-shadow: var(--elevation-3);
+}
+
+.locating svg {
+  animation: pulse 1s var(--ease) infinite alternate;
+}
+
+@keyframes pulse {
+  to {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .locating svg {
+    animation: none;
+  }
+}
+
+.error {
+  max-width: 220px;
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--elevation-1);
+  font-size: var(--text-sm);
+}
+
+@media (min-width: 900px) {
+  .wrap {
+    right: var(--space-5);
+    bottom: var(--space-5);
+  }
+}

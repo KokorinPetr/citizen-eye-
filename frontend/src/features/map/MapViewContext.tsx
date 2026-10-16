@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import type { Position } from "../../hooks/useGeolocation";
 import { loadJson, saveJson } from "../../utils/storage";
 import { bboxAround, isValidBbox } from "./bbox";
 
@@ -13,14 +14,23 @@ interface MapViewContextValue {
   /** `view.bbox` is always a valid area (falls back to an area around the centre). */
   view: MapView & { bbox: string };
   setView: (view: MapView) => void;
-  /** A place the map should fly to (set when a detail sheet opens). */
+  /** A place the map should fly to (set when a detail sheet opens, or by "locate me"). */
   focus: Focus | null;
-  focusOn: (lat: number, lng: number) => void;
+  focusOn: (lat: number, lng: number, options?: FocusOptions) => void;
   /** Called once the map has flown there, so remounting the map doesn't fly again. */
   clearFocus: () => void;
+  /** Where the person is, once they let us locate them (only kept in memory). */
+  myLocation: Position | null;
+  setMyLocation: (position: Position) => void;
 }
 
-export interface Focus {
+interface FocusOptions {
+  /** Keep the place visible next to a detail sheet (default) or put it in the middle. */
+  besideSheet?: boolean;
+  zoom?: number;
+}
+
+export interface Focus extends FocusOptions {
   lat: number;
   lng: number;
   /** Changes on every request, so focusing the same place twice still flies. */
@@ -36,15 +46,19 @@ const MapViewContext = createContext<MapViewContextValue | null>(null);
 export function MapViewProvider({ children }: { children: ReactNode }) {
   const [view, setView] = useState<MapView>(() => loadJson(KEY, THAILAND));
   const [focus, setFocus] = useState<Focus | null>(null);
+  const [myLocation, setMyLocation] = useState<Position | null>(null);
   const focusOn = useCallback(
-    (lat: number, lng: number) => setFocus({ lat, lng, requestId: Date.now() }),
+    (lat: number, lng: number, options: FocusOptions = {}) =>
+      setFocus({ lat, lng, ...options, requestId: Date.now() }),
     [],
   );
   const clearFocus = useCallback(() => setFocus(null), []);
   useEffect(() => saveJson(KEY, view), [view]);
   const bbox = isValidBbox(view.bbox) ? view.bbox : bboxAround(view.center, view.zoom);
   return (
-    <MapViewContext.Provider value={{ view: { ...view, bbox }, setView, focus, focusOn, clearFocus }}>
+    <MapViewContext.Provider
+      value={{ view: { ...view, bbox }, setView, focus, focusOn, clearFocus, myLocation, setMyLocation }}
+    >
       {children}
     </MapViewContext.Provider>
   );

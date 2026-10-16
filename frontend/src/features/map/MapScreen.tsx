@@ -7,8 +7,10 @@ import { CenterMarkers, IncidentMarkers, PostMarkers } from "./MapLayers";
 import styles from "./MapScreen.module.css";
 import { RouteLayer } from "../routes/RouteLayer";
 import { FocusController } from "./FocusController";
+import { LocateButton } from "./LocateButton";
 import { MapResizer } from "./MapResizer";
 import { MapTracker } from "./MapTracker";
+import { MyLocationLayer } from "./MyLocationLayer";
 import { useMapView } from "./MapViewContext";
 import { OFFICIAL_MIN_ZOOM, OFFICIAL_TYPES, useLayers } from "./useLayers";
 
@@ -41,6 +43,7 @@ export function MapScreen() {
         <MapResizer />
         <FocusController />
         <RouteLayer />
+        <MyLocationLayer />
         {mode === "emergency" ? (
           <>
             <CenterMarkers bbox={view.bbox} types={centerTypes} />
@@ -54,6 +57,7 @@ export function MapScreen() {
         <LayerBar layers={layers} update={update} toggleIn={toggleIn} />
       </TopBar>
       {mode === "emergency" && officialHidden && <ZoomHint />}
+      <LocateButton />
       <Outlet />
     </div>
   );

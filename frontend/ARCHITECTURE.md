@@ -165,4 +165,7 @@ for hashed `/assets/`, gzip). The root `docker-compose.yml` runs db + api + web;
 - PWA: `public/manifest.webmanifest` + icons (`icon.svg`, `icon-192/512.png`,
   `apple-touch-icon.png`) → "Add to Home Screen" opens full screen. No service worker yet (no
   offline mode); add one only with a clear caching plan.
-- Geolocation ("use my location") only works on `https://` or `localhost`.
+- Geolocation only works on `https://` or `localhost`. Map: a locate button (bottom right) shows a
+  blue dot with the GPS accuracy circle and flies there; if location was allowed before, the map
+  finds the person by itself when it opens (no permission pop-up on first visit). The position is
+  kept in memory only (`MapViewContext.myLocation`), never sent to the backend.

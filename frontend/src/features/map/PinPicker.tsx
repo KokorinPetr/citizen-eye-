@@ -28,7 +28,7 @@ function CenterReporter({ onChange, onReady }: { onChange: (point: GeoPoint) => 
 
 /** Choose a location: a fixed pin in the centre, the user moves the map (easy on phones). */
 export function PinPicker({ onChange }: { onChange: (point: GeoPoint) => void }) {
-  const { view } = useMapView();
+  const { view, setMyLocation } = useMapView();
   const [map, setMap] = useState<LeafletMap | null>(null);
   const { locate, locating, error } = useGeolocation();
 
@@ -57,7 +57,12 @@ export function PinPicker({ onChange }: { onChange: (point: GeoPoint) => void })
           variant="secondary"
           icon="pin"
           disabled={locating || !map}
-          onClick={() => locate((lat, lng) => map?.setView([lat, lng], PICK_ZOOM))}
+          onClick={() =>
+            locate((position) => {
+              setMyLocation(position);
+              map?.setView([position.lat, position.lng], PICK_ZOOM);
+            })
+          }
         >
           {error ? t.ask.locationError : t.ask.useMyLocation}
         </Button>

@@ -17,10 +17,14 @@ export function FocusController() {
 
   useEffect(() => {
     if (!focus) return;
-    const zoom = Math.max(map.getZoom(), FOCUS_ZOOM);
+    const zoom = Math.max(map.getZoom(), focus.zoom ?? FOCUS_ZOOM);
     const size = map.getSize();
     const offset =
-      size.x >= DESKTOP_MIN_WIDTH ? point(-PANEL_WIDTH / 2, 0) : point(0, size.y * 0.22);
+      focus.besideSheet === false
+        ? point(0, 0)
+        : size.x >= DESKTOP_MIN_WIDTH
+          ? point(-PANEL_WIDTH / 2, 0)
+          : point(0, size.y * 0.22);
     const target = map.unproject(map.project([focus.lat, focus.lng], zoom).add(offset), zoom);
     map.flyTo(target, zoom, { duration: 0.6 });
     clearFocus();

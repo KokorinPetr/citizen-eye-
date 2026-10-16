@@ -18,6 +18,7 @@ const PATHS = {
   reply: "M10 8 4 13l6 5M4 13h10a6 6 0 0 1 6 6",
   send: "M4 12 20 4l-4 16-4-6-8-2Zm8 2 8-10",
   flag: "M5 21V4m0 0h11l-2 4 2 4H5",
+  locate: "M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Zm0-6v3m0 14v3M2 12h3m14 0h3m-3 0a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z",
   trash: "M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13",
 } as const;
 
