@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ApiError, api, unwrap } from "../../api/client";
+import { api, unwrap, unwrapEmpty } from "../../api/client";
 
 /** After any volunteer action: the incident, its volunteers, the map and "Me" change. */
 function useRefreshAfterHelp(incidentId: string) {
@@ -26,16 +26,12 @@ export function useSignUp(incidentId: string) {
 
 export function useCancelSignup(incidentId: string) {
   return useMutation({
-    // 204 No Content: there is no body to unwrap, so check the status ourselves.
-    mutationFn: async (signupId: string) => {
-      const { error, response } = await api.DELETE("/incidents/{incident_id}/volunteers/{signup_id}", {
-        params: { path: { incident_id: incidentId, signup_id: signupId } },
-      });
-      if (!response.ok) {
-        const body = error as { error?: { message?: string; code?: string } } | undefined;
-        throw new ApiError(body?.error?.message ?? `Request failed (${response.status})`, response.status);
-      }
-    },
+    mutationFn: (signupId: string) =>
+      unwrapEmpty(
+        api.DELETE("/incidents/{incident_id}/volunteers/{signup_id}", {
+          params: { path: { incident_id: incidentId, signup_id: signupId } },
+        }),
+      ),
     onSuccess: useRefreshAfterHelp(incidentId),
   });
 }

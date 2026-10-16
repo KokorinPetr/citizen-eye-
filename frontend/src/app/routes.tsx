@@ -1,5 +1,6 @@
 import { createBrowserRouter } from "react-router";
 import { CenterSheet } from "../features/centers/CenterSheet";
+import { PostFlow } from "../features/community/PostFlow";
 import { PostSheet } from "../features/community/PostSheet";
 import { IncidentSheet } from "../features/incidents/IncidentSheet";
 import { ListScreen } from "../features/list/ListScreen";
@@ -29,6 +30,7 @@ export const router = createBrowserRouter([
       { path: "/ask", element: <AskScreen /> },
       { path: "/ask/help", element: <ReportFlow /> },
       { path: "/ask/place", element: <PlaceFlow /> },
+      { path: "/ask/post", element: <PostFlow /> },
       { path: "/me", element: <MeScreen /> },
     ],
   },

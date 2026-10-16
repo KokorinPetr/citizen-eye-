@@ -53,6 +53,11 @@
   background: var(--blue-600);
 }
 
+/* Same weight as the rule above it for the current page, so Community stays blue on /ask. */
+.community .ask[aria-current="page"] .askCircle {
+  background: var(--blue-700);
+}
+
 @media (min-width: 900px) {
   .nav {
     order: -1; /* top bar on desktop */

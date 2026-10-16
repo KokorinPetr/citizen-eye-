@@ -2,14 +2,19 @@ import { useNavigate, useParams } from "react-router";
 import { useFocusOnMap } from "../map/useFocusOnMap";
 import type { Post } from "../../api/types";
 import { ButtonLink } from "../../components/Button";
-import { Actions, DetailHeader, Meta, Note, Section } from "../../components/Detail";
+import { Actions, DetailHeader, Meta, Section } from "../../components/Detail";
 import { Pill } from "../../components/Pill";
 import { Sheet } from "../../components/Sheet";
 import { ErrorState, LoadingState } from "../../components/States";
 import { format, t } from "../../i18n";
 import { formatBaht, timeAgo } from "../../utils/format";
+import { canManage } from "../../utils/permissions";
+import { useAuth } from "../auth/AuthProvider";
 import { POST_EMOJI } from "../map/meta";
 import { usePost } from "./api";
+import { isExpired } from "./postState";
+import { RespondPanel } from "./RespondPanel";
+import { ResponseInbox } from "./ResponseInbox";
 import styles from "./PostSheet.module.css";
 
 export function PostSheet() {
@@ -28,6 +33,8 @@ export function PostSheet() {
 }
 
 function PostDetails({ post }: { post: Post }) {
+  const { user } = useAuth();
+  const manage = canManage(user, post.owner.id);
   const details = Object.entries(post.details ?? {}).filter(([, value]) => value !== null && value !== "");
 
   return (
@@ -40,6 +47,7 @@ function PostDetails({ post }: { post: Post }) {
             </Pill>
             {post.status === "matched" && <Pill>{t.community.matched}</Pill>}
             {post.status === "closed" && <Pill>{t.community.closed}</Pill>}
+            {post.status !== "closed" && isExpired(post) && <Pill>{t.community.expired}</Pill>}
           </>
         }
         title={post.title}
@@ -84,9 +92,13 @@ function PostDetails({ post }: { post: Post }) {
         </Section>
       )}
 
-      <Section>
-        <Note>{t.community.respondSoon}</Note>
-      </Section>
+      {manage ? (
+        <ResponseInbox post={post} isAuthor={post.owner.id === user?.id} />
+      ) : (
+        <Section>
+          <RespondPanel post={post} />
+        </Section>
+      )}
     </>
   );
 }

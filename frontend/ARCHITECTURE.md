@@ -139,7 +139,9 @@ npm run lint
    (incl. merged / rejected). ✅ Add a shelter / supply point (login required).
 3. Accounts: ✅ login / register / logout, ✅ "Me" with my sign-ups, ✅ token refresh on 401;
    ✅ I'm going / cancel / mark task done (tap twice to confirm); ✅ routes to nearest help (map lines, Navigate → Google Maps).
-4. ⬜ Community: respond, new post (AI draft), responses inbox, my posts.
+4. ✅ Community: new post (pin → text → AI draft, editable; "fill in by hand" if AI is down), respond
+   ("I've seen it" / "I can help"…, withdraw), author inbox (accept one → matched), mark solved,
+   delete, "Your posts" on Me.
 5. ⬜ Polish: marker clustering if needed, Thai texts.
 6. ✅ Deployed: one server behind Cloudflare (see ../deploy/README.md).
 

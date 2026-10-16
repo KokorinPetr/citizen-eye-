@@ -1,10 +1,14 @@
 import { Link } from "react-router";
+import { useMode } from "../../app/ModeContext";
 import { Button } from "../../components/Button";
 import { Screen } from "../../components/Screen";
 import { LoadingState } from "../../components/States";
 import { format, t } from "../../i18n";
 import { AuthForm } from "../auth/AuthForm";
 import { useAuth } from "../auth/AuthProvider";
+import { useMyPosts } from "../community/api";
+import { postStatusLabel } from "../community/postState";
+import { POST_EMOJI } from "../map/meta";
 import { useMySignups } from "./api";
 import styles from "./MeScreen.module.css";
 
@@ -30,6 +34,7 @@ export function MeScreen() {
         </Button>
       </div>
       <MyHelp userId={user.id} />
+      <MyPosts userId={user.id} />
     </Screen>
   );
 }
@@ -49,6 +54,38 @@ function MyHelp({ userId }: { userId: string }) {
                 <span className={styles.itemTitle}>{signup.incident.title}</span>
                 <span className={styles.meta}>
                   {signup.task.title}, {signup.status === "completed" ? t.me.statusCompleted : t.me.statusGoing}
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function MyPosts({ userId }: { userId: string }) {
+  const { data: posts = [] } = useMyPosts(userId);
+  const { setMode } = useMode();
+  return (
+    <section className={styles.section}>
+      <h2>{t.me.myPosts}</h2>
+      {posts.length === 0 ? (
+        <p className={styles.meta}>{t.me.myPostsEmpty}</p>
+      ) : (
+        <ul className={styles.list}>
+          {posts.map((post) => (
+            <li key={post.id}>
+              {/* Posts live on the Community map. */}
+              <Link to={`/posts/${post.id}`} className={styles.item} onClick={() => setMode("community")}>
+                <span className={styles.itemTitle}>
+                  {POST_EMOJI[post.category]} {post.title}
+                </span>
+                <span className={styles.meta}>
+                  {postStatusLabel(post)},{" "}
+                  {post.response_count === 1
+                    ? t.me.newResponsesOne
+                    : format(t.me.newResponses, { n: post.response_count })}
                 </span>
               </Link>
             </li>

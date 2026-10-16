@@ -5,12 +5,11 @@ import { ConfirmButton } from "../../components/ConfirmButton";
 import { Meta, Note } from "../../components/Detail";
 import { FormError } from "../../components/Form";
 import { format, t } from "../../i18n";
+import { canManage } from "../../utils/permissions";
 import { useAuth } from "../auth/AuthProvider";
 import { useCancelSignup, useCompleteTask, useSignUp } from "../volunteers/api";
 import { useIncidentVolunteers } from "./api";
 import styles from "./IncidentSheet.module.css";
-
-const MANAGER_ROLES = ["coordinator", "admin"];
 
 /** "What you can do": tasks with I'm going / Cancel / Mark as done. */
 export function TaskList({ incident }: { incident: Incident }) {
@@ -24,7 +23,7 @@ export function TaskList({ incident }: { incident: Incident }) {
   const mySignup: Volunteer | undefined = volunteers.find(
     (volunteer) => volunteer.user.id === user?.id && volunteer.status === "going",
   );
-  const canManage = Boolean(user && (incident.owner_id === user.id || MANAGER_ROLES.includes(user.role)));
+  const canManageIncident = canManage(user, incident.owner_id);
   const resolved = incident.status === "resolved";
   const busy = signUp.isPending || cancel.isPending || complete.isPending;
   const error = signUp.error ?? cancel.error ?? complete.error;
@@ -56,7 +55,7 @@ export function TaskList({ incident }: { incident: Incident }) {
 
   return (
     <>
-      {canManage && !resolved && <Meta>{t.incident.youAreOwner}</Meta>}
+      {canManageIncident && !resolved && <Meta>{t.incident.youAreOwner}</Meta>}
       <ul className={styles.tasks}>
         {incident.tasks.map((task) => (
           <TaskRow
@@ -65,7 +64,7 @@ export function TaskList({ incident }: { incident: Incident }) {
             mine={mySignup?.task.id === task.id ? mySignup : undefined}
             helpingElsewhere={Boolean(mySignup) && mySignup?.task.id !== task.id}
             canJoin={isLoggedIn && !resolved}
-            canManage={canManage && !resolved}
+            canManage={canManageIncident && !resolved}
             busy={busy}
             actions={actions}
           />

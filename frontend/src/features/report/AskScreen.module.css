@@ -22,9 +22,34 @@
   box-shadow: var(--elevation-2);
 }
 
+/* The main choice of the current mode: green for Emergency, blue for Community (like the mode switch). */
 .primary {
   border-color: var(--green-600);
   background: var(--green-50);
+}
+
+.community.primary {
+  border-color: var(--blue-600);
+  background: var(--blue-50);
+}
+
+.group {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.group + .group {
+  margin-top: var(--space-6);
+}
+
+.groupHeader {
+  display: grid;
+  gap: 2px;
+}
+
+.groupTitle {
+  margin: 0;
+  font-size: var(--text-lg);
 }
 
 .emoji {

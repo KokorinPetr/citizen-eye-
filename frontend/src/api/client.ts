@@ -67,21 +67,32 @@ interface FetchResult<T> {
   response: Response;
 }
 
-/** Turn an openapi-fetch result into data or a thrown ApiError (for TanStack Query). */
-export async function unwrap<T>(request: Promise<FetchResult<T>>): Promise<T> {
-  let result: FetchResult<T>;
+async function settle<T>(request: Promise<FetchResult<T>>): Promise<FetchResult<T>> {
   try {
-    result = await request;
+    return await request;
   } catch {
     throw new ApiError("Can't reach the server. Check your connection and try again.", 0);
   }
-  if (result.error !== undefined || result.data === undefined) {
-    const body = result.error as { error?: { message?: string; code?: string } } | undefined;
-    throw new ApiError(
-      body?.error?.message ?? `Request failed (${result.response.status})`,
-      result.response.status,
-      body?.error?.code,
-    );
-  }
+}
+
+function toApiError(result: FetchResult<unknown>): ApiError {
+  const body = result.error as { error?: { message?: string; code?: string } } | undefined;
+  return new ApiError(
+    body?.error?.message ?? `Request failed (${result.response.status})`,
+    result.response.status,
+    body?.error?.code,
+  );
+}
+
+/** Turn an openapi-fetch result into data or a thrown ApiError (for TanStack Query). */
+export async function unwrap<T>(request: Promise<FetchResult<T>>): Promise<T> {
+  const result = await settle(request);
+  if (result.error !== undefined || result.data === undefined) throw toApiError(result);
   return result.data;
+}
+
+/** Same for endpoints that answer 204 No Content (there is no body to return). */
+export async function unwrapEmpty(request: Promise<FetchResult<unknown>>): Promise<void> {
+  const result = await settle(request);
+  if (!result.response.ok) throw toApiError(result);
 }

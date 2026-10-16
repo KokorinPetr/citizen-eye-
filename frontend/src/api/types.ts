@@ -26,6 +26,11 @@ export type CenterWithRoute = Schemas["CenterWithRoute"];
 
 export type Post = Schemas["PostRead"];
 export type PostCategory = Schemas["PostCategory"];
+export type PostStatus = Schemas["PostStatus"];
+export type ParsedPost = Schemas["ParsedPost"];
+export type PostCreate = Schemas["PostCreate"];
+export type PostResponse = Schemas["ResponseRead"];
+export type ResponseStatus = Schemas["ResponseStatus"];
 
 export type GeoPoint = Schemas["GeoPoint"];
 
