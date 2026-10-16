@@ -39,6 +39,7 @@ const GROUPS: AskGroup[] = [
       { to: "/ask/post?kind=lost", emoji: "🐾", title: t.ask.lostFound, hint: t.ask.lostFoundHint },
       { to: "/ask/post?kind=help_wanted", emoji: "🙋", title: t.ask.helpWanted, hint: t.ask.helpWantedHint },
       { to: "/ask/post?kind=help_offered", emoji: "🤝", title: t.ask.helpOffered, hint: t.ask.helpOfferedHint },
+      { to: "/feed/new", emoji: "💬", title: t.ask.postOnFeed, hint: t.ask.postOnFeedHint },
     ],
   },
 ];

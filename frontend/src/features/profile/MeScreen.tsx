@@ -7,6 +7,8 @@ import { format, t } from "../../i18n";
 import { AuthForm } from "../auth/AuthForm";
 import { useAuth } from "../auth/AuthProvider";
 import { useMyPosts } from "../community/api";
+import { useFeed } from "../feed/api";
+import { TOPIC_EMOJI } from "../feed/meta";
 import { postStatusLabel } from "../community/postState";
 import { POST_EMOJI } from "../map/meta";
 import { useMySignups } from "./api";
@@ -35,6 +37,7 @@ export function MeScreen() {
       </div>
       <MyHelp userId={user.id} />
       <MyPosts userId={user.id} />
+      <MyFeedPosts userId={user.id} />
     </Screen>
   );
 }
@@ -86,6 +89,45 @@ function MyPosts({ userId }: { userId: string }) {
                   {post.response_count === 1
                     ? t.me.newResponsesOne
                     : format(t.me.newResponses, { n: post.response_count })}
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+const FEED_PREVIEW = 3;
+
+/** Last few Feed posts; "See all" opens Feed → Mine (same cached query). */
+function MyFeedPosts({ userId }: { userId: string }) {
+  const { data } = useFeed({ sort: "new", topic: null, authorId: userId });
+  const posts = data?.pages.flat() ?? [];
+  return (
+    <section className={styles.section}>
+      <div className={styles.sectionHeader}>
+        <h2>{t.me.myFeedPosts}</h2>
+        {posts.length > 0 && (
+          <Link to="/feed?view=mine" className={styles.seeAll}>
+            {t.me.seeAll}
+          </Link>
+        )}
+      </div>
+      {posts.length === 0 ? (
+        <p className={styles.meta}>{t.me.myFeedPostsEmpty}</p>
+      ) : (
+        <ul className={styles.list}>
+          {posts.slice(0, FEED_PREVIEW).map((post) => (
+            <li key={post.id}>
+              <Link to={`/feed/${post.id}`} className={styles.item}>
+                <span className={[styles.itemTitle, styles.clamp].join(" ")}>
+                  {TOPIC_EMOJI[post.topic]} {post.body}
+                </span>
+                <span className={styles.meta}>
+                  {format(t.feed.likes, { n: post.like_count })},{" "}
+                  {format(t.feed.comments, { n: post.comment_count })}
                 </span>
               </Link>
             </li>

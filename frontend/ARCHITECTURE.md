@@ -49,6 +49,7 @@ frontend/
 │   │   ├── centers/          center sheet, nearest help, routes
 │   │   ├── report/           "Ask for help" flow (pin → text → AI preview → result)
 │   │   ├── community/        board, post sheet, responses, new post flow
+│   │   ├── feed/             neighbourhood talk: feed, thread sheet, comments, likes
 │   │   ├── auth/             AuthProvider, login/register screens
 │   │   └── profile/          "Me": my help, my posts
 │   ├── components/           shared UI only: Button, Chip, Sheet, BottomNav, Banner, Empty…
@@ -108,7 +109,8 @@ use a Thai fallback (e.g. IBM Plex Sans Thai Looped) in the same stack. Scale: 1
 ### Layout
 - Mobile: full-screen map; top: mode switch (🆘 Emergency / 🏘 Community) + alert banner when
   needed; bottom nav: Map · List · **Ask for help** (raised round button, the one bold element) ·
-  Me. Details open in a **bottom sheet** (peek → half → full).
+  Feed · Me. Details open in a **bottom sheet** (peek → half → full); over a list (Feed threads)
+  the sheet is **modal** (dimmed background, Escape closes, pinned footer for the comment box).
 - Desktop (≥ 900 px): nav moves to a top bar; the sheet becomes a 400 px left panel next to the map.
 - Map markers: **water-drop shapes** for incidents (size = magnitude level, colour = urgency;
   in-progress = outlined), round icons for places, emoji icons for community posts.
@@ -142,8 +144,13 @@ npm run lint
 4. ✅ Community: new post (pin → text → AI draft, editable; "fill in by hand" if AI is down), respond
    ("I've seen it" / "I can help"…, withdraw), author inbox (accept one → matched), mark solved,
    delete, "Your posts" on Me.
-5. ⬜ Polish: marker clustering if needed, Thai texts.
-6. ✅ Deployed: one server behind Cloudflare (see ../deploy/README.md).
+5. ✅ Feed (💬 tab): New / Popular, topic chips, cards with likes and comment count; tapping opens
+   the thread in a modal sheet (comments, one level of replies, pinned comment box); new post sheet;
+   delete / report (tap twice). Likes update instantly (optimistic) and settle on the server answer.
+   New · Popular · Mine (`/feed?view=mine`); "Your Feed posts" on Me. On the Feed tab the big +
+   becomes "Create post".
+6. ⬜ Polish: marker clustering if needed, Thai texts.
+7. ✅ Deployed: one server behind Cloudflare (see ../deploy/README.md).
 
 ## Docker
 `frontend/Dockerfile` builds the static files with Node (`VITE_API_URL` is a build argument, baked

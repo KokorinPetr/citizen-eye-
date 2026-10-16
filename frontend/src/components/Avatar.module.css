@@ -1,0 +1,36 @@
+.avatar {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: var(--text-md);
+}
+
+.small {
+  width: 32px;
+  height: 32px;
+  font-size: var(--text-sm);
+}
+
+.green {
+  background: var(--green-100);
+  color: var(--green-900);
+}
+
+.blue {
+  background: var(--blue-100);
+  color: var(--blue-700);
+}
+
+.sand {
+  background: var(--sand-100);
+  color: var(--sand-800);
+}
+
+.rose {
+  background: var(--rose-100);
+  color: var(--rose-800);
+}

@@ -43,3 +43,23 @@
   display: grid;
   gap: var(--space-3);
 }
+
+.sectionHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.seeAll {
+  font-weight: 700;
+  color: var(--blue-700);
+}
+
+.clamp {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}

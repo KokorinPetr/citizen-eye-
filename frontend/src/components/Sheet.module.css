@@ -71,6 +71,39 @@
   overscroll-behavior: contain;
 }
 
+.footer {
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+
+/* Modal: over a list (not the map) */
+.scrim {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-sheet);
+  background: rgb(30 58 43 / 0.32);
+  animation: fade var(--duration) var(--ease);
+}
+
+.modal {
+  max-height: 86%;
+}
+
+.modal.expanded {
+  max-height: 96%;
+}
+
+.modal .body {
+  flex: 1;
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
 @media (min-width: 900px) {
   .sheet,
   .expanded {
@@ -86,5 +119,20 @@
 
   .handle {
     visibility: hidden;
+  }
+
+  .modal,
+  .modal.expanded {
+    left: 50%;
+    width: min(600px, calc(100% - 2 * var(--space-4)));
+    transform: translateX(-50%);
+    animation: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet,
+  .scrim {
+    animation: none;
   }
 }

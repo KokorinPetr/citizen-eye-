@@ -1,0 +1,342 @@
+/* Feed screen: a scrolling column; thread / new-post sheets sit on top (position: relative). */
+.screen {
+  position: relative;
+  height: 100%;
+}
+
+.scroll {
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.content {
+  display: grid;
+  gap: var(--space-4);
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  padding: calc(var(--space-5) + env(safe-area-inset-top)) var(--space-4) var(--space-8);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.title {
+  font-size: var(--text-xl);
+  line-height: 1.2;
+}
+
+/* New / Popular */
+.segmented {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-container-high);
+}
+
+.segmented button {
+  min-height: 40px;
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: none;
+  color: var(--text-muted);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.segmented button[aria-pressed="true"] {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--elevation-1);
+}
+
+/* "What's happening in your area?" */
+.prompt {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 56px;
+  padding: var(--space-2) var(--space-4) var(--space-2) var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  box-shadow: var(--elevation-1);
+  color: var(--text-muted);
+  text-decoration: none;
+}
+
+.prompt:hover {
+  box-shadow: var(--elevation-2);
+}
+
+.promptIcon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--blue-600);
+  color: var(--surface);
+}
+
+.topics {
+  display: flex;
+  gap: var(--space-2);
+  margin: 0 calc(-1 * var(--space-4));
+  padding: 2px var(--space-4) var(--space-1);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.topics > * {
+  flex: none;
+}
+
+.empty {
+  padding: var(--space-4) 0;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.list {
+  display: grid;
+  gap: var(--space-3);
+}
+
+/* Post card */
+.card {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--elevation-1);
+}
+
+.cardInThread {
+  padding: 0 0 var(--space-2);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.who {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+.name {
+  font-weight: 700;
+}
+
+.meta {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.topic {
+  flex: none;
+  padding: 2px var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--blue-50);
+  color: var(--blue-700);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.body {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--text-md);
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  text-decoration: none;
+}
+
+.clamped {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 6;
+  line-clamp: 6;
+  overflow: hidden;
+}
+
+.actions,
+.commentActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.actions {
+  margin-left: calc(-1 * var(--space-2));
+}
+
+/* Like / comments / reply: quiet pill buttons with a number */
+.action {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 40px;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: none;
+  color: var(--text-muted);
+  font-weight: 700;
+  font-size: var(--text-sm);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background var(--duration) var(--ease);
+}
+
+.action:hover {
+  background: var(--surface-container-low);
+}
+
+.liked {
+  color: var(--blue-600);
+}
+
+.liked svg {
+  fill: currentColor;
+}
+
+/* Thread */
+.comments {
+  display: grid;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line);
+}
+
+.commentsTitle {
+  font-size: var(--text-md);
+}
+
+.commentList,
+.replies {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.replies {
+  margin: var(--space-2) 0 0 var(--space-8);
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--line);
+}
+
+.comment {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.commentMain {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+.commentText {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: 4px var(--radius-md) var(--radius-md) var(--radius-md);
+  background: var(--surface-container-low);
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.commentActions {
+  margin-left: calc(-1 * var(--space-2));
+}
+
+.itemMenu {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.quiet {
+  min-height: 40px;
+  padding: 0 var(--space-3);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+/* Comment box */
+.composer {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.replyingTo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.composerRow {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+
+.composerInput {
+  flex: 1;
+  min-height: 48px;
+  max-height: 140px;
+  padding: var(--space-3) var(--space-4);
+  border: 1.5px solid var(--outline);
+  border-radius: 24px;
+  background: var(--surface);
+  font: inherit;
+  font-size: max(16px, var(--text-base)); /* ≥16px: no zoom-on-focus on iOS */
+  resize: none;
+  field-sizing: content;
+}
+
+.composerInput:focus {
+  border-color: var(--green-600);
+  box-shadow: var(--focus-halo);
+  outline: none;
+}
+
+.sendButton {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: var(--tap);
+  height: var(--tap);
+  border: 0;
+  border-radius: 50%;
+  background: var(--green-600);
+  color: var(--surface);
+  cursor: pointer;
+}
+
+.sendButton:disabled {
+  background: var(--surface-container-high);
+  color: var(--text-muted);
+  cursor: default;
+}
+
+.newPost {
+  display: grid;
+  gap: var(--space-5);
+}

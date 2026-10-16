@@ -179,6 +179,23 @@ tables** (no `kind` flag inside incidents, so the emergency flow is never affect
 - **No payments.** `platform_fee_preview` (5% of the reward) is shown for the pitch only; people
   settle rewards themselves (e.g. PromptPay QR). See README → "Business model".
 
+## Feed (`modules/feed`)
+
+Neighbourhood talk (complaints, questions, news, chat) so people open the app every day. Public to
+read, login to write. Complaints such as "the drain on Soi 5 is blocked" double as early flood
+signals.
+
+- `feed_posts`: `topic`, `body`, optional `area_text` (area name only, **no pin**, for privacy),
+  denormalised `like_count` / `comment_count` / `report_count`, `is_hidden`.
+- `feed_comments`: `parent_id` for replies, **one level**: a reply to a reply is attached to the
+  top comment, so threads stay readable on a phone. Deleting a comment deletes its replies.
+- `feed_reactions`: one table for likes **and** reports (`kind`), on a post *or* a comment (check
+  constraint), unique per user + kind + target (partial unique indexes). Counts are recounted
+  after each change, so they never drift.
+- Moderation: `FEED_HIDE_AFTER_REPORTS` (3) different people → `is_hidden`; hidden items disappear
+  for everyone except their author and coordinators. Author or coordinator can delete.
+- Reads include `liked_by_me` (one extra query per page for the viewer's likes).
+
 ### Emergency ↔ Community (`GET /alerts`)
 `GET /alerts?lat=&lng=` (incidents module) returns active **high/critical** incidents within
 `ALERT_RADIUS_M` (5 km), closest first. The Community screen polls it; `active: true` → red banner /

@@ -2,7 +2,7 @@
   position: relative;
   z-index: var(--z-nav);
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   align-items: center;
   height: calc(var(--nav-height) + env(safe-area-inset-bottom));
   padding: 0 var(--space-2) env(safe-area-inset-bottom);
@@ -62,7 +62,7 @@
   .nav {
     order: -1; /* top bar on desktop */
     height: 64px;
-    grid-template-columns: repeat(4, max-content);
+    grid-template-columns: repeat(5, max-content);
     justify-content: center;
     gap: var(--space-6);
     border-top: 0;

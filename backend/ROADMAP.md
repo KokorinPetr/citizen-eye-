@@ -91,7 +91,17 @@ Tick items `[x]` as they are done. Riskier work comes first. See `ARCHITECTURE.m
 - [x] `POST /community/posts/preview` (AI draft from free text, login required)
 - [x] `GET /alerts` (urgent incidents within 5 km → switch to Emergency)
 - [x] Seed community posts; dev map Emergency | Community switch + alert banner
-- [ ] Frontend: Community tab, post form, responses inbox, alert banner
+- [x] Frontend: Community tab, post form, responses inbox, alert banner
+
+## Phase 6d — Feed (neighbourhood talk)
+- [x] `feed` module: posts (topic `complaint | question | news | chat`, area name, no pin),
+  comments with one level of replies, likes on posts and comments, reports
+- [x] Public reading; posting / commenting / liking / reporting need login
+- [x] 3 reports from different people hide a post or comment (`FEED_HIDE_AFTER_REPORTS`)
+- [x] Sort New / Popular (likes + comments, last 7 days), topic filter, paging (limit + offset)
+- [x] `author_id` filter ("Mine"); authors also see their own hidden posts there
+- [x] Seed: 30 Bangkok feed posts with comments, replies and likes
+- [ ] Later: coordinator review screen for hidden items, trending complaints per area
 - [ ] Later: payments / commission (Omise or 2C2P with PromptPay), boosted posts, local business listings
 
 ## Phase 7 — Demo and deploy

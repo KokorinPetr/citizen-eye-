@@ -42,6 +42,10 @@ class Settings(BaseSettings):
 
     # Community board
     community_post_ttl_days: int = 30  # open posts disappear from the board after this
+
+    # Feed (neighbourhood talk)
+    feed_hide_after_reports: int = 3  # posts / comments with this many reports are hidden
+    feed_top_window_days: int = 7  # "Popular" ranks posts from the last N days
     # Emergency alert: active high/critical incidents within this radius switch the app to Emergency
     alert_radius_m: int = 5000
 

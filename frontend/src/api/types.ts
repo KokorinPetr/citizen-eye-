@@ -32,6 +32,12 @@ export type PostCreate = Schemas["PostCreate"];
 export type PostResponse = Schemas["ResponseRead"];
 export type ResponseStatus = Schemas["ResponseStatus"];
 
+export type FeedPost = Schemas["FeedPostRead"];
+export type FeedComment = Schemas["FeedCommentRead"];
+export type FeedTopic = Schemas["FeedTopic"];
+export type FeedSort = Schemas["FeedSort"];
+export type FeedPostCreate = Schemas["FeedPostCreate"];
+
 export type GeoPoint = Schemas["GeoPoint"];
 
 export type ParsedReport = Schemas["ParsedReport"];

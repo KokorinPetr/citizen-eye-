@@ -434,6 +434,29 @@ Response: `{ id, post_id, user: {id, full_name, has_vehicle}, message, status, c
 status `pending | accepted | declined | withdrawn`. Responses are private (the public only sees
 `response_count`), so messages work as a simple inbox for the author.
 
+## 6c. Feed (neighbourhood talk)
+
+Reddit-like feed of complaints, questions, news and chat. **Anyone reads; logged-in users post,
+comment, like and report.** No map pin: only an optional area name.
+
+| Action | Request | Who |
+| --- | --- | --- |
+| List | `GET /feed/posts?sort=new\|top&topic=complaint&limit=20&offset=0` | everyone (`top` = likes + comments, last 7 days); next page: `offset += limit` |
+| My posts | `GET /feed/posts?author_id=<me.id>` | everyone; the author also gets their own hidden posts |
+| One post | `GET /feed/posts/{id}` | everyone |
+| Create | `POST /feed/posts` `{ "topic": "complaint", "body": "...", "area_text": "Lat Phrao" }` | logged in |
+| Delete | `DELETE /feed/posts/{id}` | author / coordinator |
+| Comments | `GET /feed/posts/{id}/comments` (oldest first, replies have `parent_id`) | everyone |
+| Comment / reply | `POST /feed/posts/{id}/comments` `{ "body": "...", "parent_id": null }` | logged in |
+| Delete comment | `DELETE /feed/comments/{id}` (its replies go too) | author / coordinator |
+| Like / unlike | `POST` / `DELETE /feed/posts/{id}/like`, `/feed/comments/{id}/like` → `{ liked, like_count }` | logged in, idempotent |
+| Report | `POST /feed/posts/{id}/report`, `/feed/comments/{id}/report` → 204 | logged in; 3 people → hidden |
+
+Post: `{ id, topic, body, area_text, author: {id, full_name, has_vehicle}, like_count,
+comment_count, liked_by_me, created_at }`. Comment: `{ id, post_id, parent_id, body, author,
+like_count, liked_by_me, created_at }`. `liked_by_me` is `false` for anonymous viewers.
+Replies are one level deep: replying to a reply attaches it to the same top comment.
+
 ## 7. Enum values
 
 | Enum | Values |
@@ -450,6 +473,8 @@ status `pending | accepted | declined | withdrawn`. Responses are private (the p
 | post `category` | `lost_pet`, `found_pet`, `lost_item`, `found_item`, `help_wanted`, `help_offered`, `other` |
 | post `status` | `open`, `matched`, `closed` |
 | response `status` | `pending`, `accepted`, `declined`, `withdrawn` |
+| feed `topic` | `complaint`, `question`, `news`, `chat` |
+| feed `sort` | `new`, `top` |
 
 ## 8. Demo data
 

@@ -6,10 +6,12 @@ owned by `bulk-*@civiceye.dev` accounts and replaced on each run. `make seed` is
 
 import asyncio
 import random
+from datetime import timedelta
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.base_model import utc_now
 from app.core.database import engine, session_factory
 from app.core.exceptions import ConflictError
 from app.core.security import hash_password
@@ -20,6 +22,9 @@ from app.modules.centers.schemas import CenterCreate
 from app.modules.community import service as community_service
 from app.modules.community.models import CommunityPost
 from app.modules.community.schemas import PostCreate, ResponseCreate
+from app.modules.feed import service as feed_service
+from app.modules.feed.models import FeedPost
+from app.modules.feed.schemas import FeedCommentCreate, FeedPostCreate
 from app.modules.incidents import service as incidents_service
 from app.modules.incidents.enums import ReportSource
 from app.modules.incidents.models import Incident
@@ -34,6 +39,7 @@ VOLUNTEER_COUNT = 30
 INCIDENT_COUNT = 70
 POST_COUNT = 40
 CENTER_COUNT = 15
+FEED_POST_COUNT = 30
 # Greater Bangkok, roughly Nonthaburi to Samut Prakan
 BANGKOK_BOX = (100.42, 13.62, 100.72, 13.92)  # min_lng, min_lat, max_lng, max_lat
 
@@ -172,6 +178,51 @@ POST_WEIGHTS = {
 }
 
 
+FEED_TEMPLATES = {
+    "complaint": [
+        "The drain on our soi has been blocked for a week. Every rain the street floods again.",
+        "Motorbikes keep driving on the footpath near the BTS. Someone will get hurt.",
+        "Street light in front of the 7-Eleven is broken again, very dark at night.",
+        "Garbage wasn't collected for 4 days. Dogs are tearing the bags open.",
+        "Construction noise starts at 6 am every day, even on Sunday.",
+        "น้ำท่วมขังหน้าซอยทุกครั้งที่ฝนตก ท่อระบายน้ำตันมานานแล้ว",
+        "Water pressure is so low on the 3rd floor that the shower barely works.",
+        "Someone parks a pickup in front of my gate every evening.",
+    ],
+    "question": [
+        "Does anyone know a good vet that is open on Sundays?",
+        "Where do you take old electronics and batteries for recycling?",
+        "Is the canal boat running again after the rain?",
+        "Which clinic nearby does vaccinations without an appointment?",
+        "ร้านซ่อมรองเท้าแถวนี้มีที่ไหนบ้างครับ",
+    ],
+    "news": [
+        "The district office says the main road will be closed on Saturday for pipe repairs.",
+        "Free health check for elderly people at the temple hall next Tuesday morning.",
+        "New pedestrian crossing finally painted near the school!",
+        "Night market moves to the parking lot behind the mall from next week.",
+    ],
+    "chat": [
+        "Best khao man gai on this side of the canal? Go!",
+        "Morning walkers group: we meet at 6:00 by the park gate, everyone welcome.",
+        "Who else saw the huge monitor lizard in the canal today?",
+        "The mango sticky rice lady is back at the corner, finally.",
+    ],
+}
+FEED_TOPIC_WEIGHTS = {"complaint": 5, "question": 3, "news": 2, "chat": 3}
+FEED_COMMENTS = [
+    "Same on our street!",
+    "I reported it to the district last month, nothing happened.",
+    "Call 1555, the Bangkok hotline. They came quickly for us.",
+    "Thanks for posting this.",
+    "Try the one next to the market, they are good.",
+    "เห็นด้วยครับ",
+    "Let's go together to the district office?",
+    "It got better after they cleaned it last year.",
+]
+FEED_REPLIES = ["Good idea, count me in.", "Really? Which day?", "Thank you!", "+1"]
+
+
 def weighted(rng: random.Random, weights: dict[str, int]) -> str:
     return rng.choices(list(weights), weights=list(weights.values()))[0]
 
@@ -227,6 +278,7 @@ async def seed_bangkok() -> None:
         await session.execute(delete(Incident).where(Incident.owner_id.in_(bulk_ids)))
         await session.execute(delete(Center).where(Center.owner_id.in_(bulk_ids)))
         await session.execute(delete(CommunityPost).where(CommunityPost.owner_id.in_(bulk_ids)))
+        await session.execute(delete(FeedPost).where(FeedPost.author_id.in_(bulk_ids)))
         await session.commit()
 
         incidents = []
@@ -332,12 +384,54 @@ async def seed_bangkok() -> None:
                     session, post.id, ResponseCreate(message="I can help, message me."), responder
                 )
 
+        feed_comments = await seed_feed(session, rng, volunteers)
+
     await engine.dispose()
     print(
         f"Bangkok: {INCIDENT_COUNT} reports (+{merged} merged follow-ups), {signups} sign-ups, "
-        f"{CENTER_COUNT} shelters/supply points, {POST_COUNT} community posts."
+        f"{CENTER_COUNT} shelters/supply points, {POST_COUNT} community posts, "
+        f"{FEED_POST_COUNT} feed posts with {feed_comments} comments."
     )
     print(f"Logins: bulk-0@{EMAIL_DOMAIN} … bulk-{VOLUNTEER_COUNT - 1}@{EMAIL_DOMAIN} / {PASSWORD}")
+
+
+async def seed_feed(session: AsyncSession, rng: random.Random, users: list[User]) -> int:
+    """Feed posts spread over the last 6 days, with comments, replies and likes."""
+    comments = 0
+    for _ in range(FEED_POST_COUNT):
+        topic = weighted(rng, FEED_TOPIC_WEIGHTS)
+        author = rng.choice(users)
+        post = await feed_service.create_post(
+            session,
+            FeedPostCreate(
+                topic=topic,
+                body=rng.choice(FEED_TEMPLATES[topic]),
+                area_text=rng.choice(DISTRICTS),
+            ),
+            author,
+        )
+        for commenter in rng.sample(users, k=rng.choice([0, 1, 2, 3, 5])):
+            top = await feed_service.add_comment(
+                session, post.id, FeedCommentCreate(body=rng.choice(FEED_COMMENTS)), commenter
+            )
+            comments += 1
+            if rng.random() < 0.3:
+                await feed_service.add_comment(
+                    session,
+                    post.id,
+                    FeedCommentCreate(body=rng.choice(FEED_REPLIES), parent_id=top.id),
+                    rng.choice(users),
+                )
+                comments += 1
+        model = await feed_service.get_post_or_raise(session, post.id, author)
+        for fan in rng.sample(users, k=rng.choice([0, 1, 2, 4, 8, 15])):
+            await feed_service.set_like(session, model, fan, liked=True)
+        posted_at = utc_now() - timedelta(minutes=rng.randint(5, 6 * 24 * 60))
+        await session.execute(
+            update(FeedPost).where(FeedPost.id == post.id).values(created_at=posted_at)
+        )
+        await session.commit()
+    return comments
 
 
 if __name__ == "__main__":

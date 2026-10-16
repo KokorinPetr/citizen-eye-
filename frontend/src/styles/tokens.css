@@ -15,6 +15,10 @@
   --blue-700: #2f6290;
 
   /* Red: urgency only */
+  --sand-100: #f3e8d2; /* avatars only */
+  --sand-800: #6b4f1d;
+  --rose-100: #f6e1e4; /* avatars only */
+  --rose-800: #7a3442;
   --red-50: #fbeceb;
   --red-600: #c8423b; /* Alarm */
 

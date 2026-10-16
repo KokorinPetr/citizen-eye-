@@ -13,6 +13,12 @@ const PATHS = {
   chevronDown: "M6 9l6 6 6-6",
   alert: "M12 3 2 20h20L12 3Zm0 6v5m0 3h.01",
   pin: "M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21Zm0-9a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z",
+  chat: "M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.6A8 8 0 1 1 21 12Z",
+  heart: "M12 20s-7.5-4.6-9.2-9.3A5 5 0 0 1 12 6a5 5 0 0 1 9.2 4.7C19.5 15.4 12 20 12 20Z",
+  reply: "M10 8 4 13l6 5M4 13h10a6 6 0 0 1 6 6",
+  send: "M4 12 20 4l-4 16-4-6-8-2Zm8 2 8-10",
+  flag: "M5 21V4m0 0h11l-2 4 2 4H5",
+  trash: "M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13",
 } as const;
 
 export type IconName = keyof typeof PATHS;

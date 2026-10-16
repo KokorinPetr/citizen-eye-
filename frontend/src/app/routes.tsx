@@ -2,6 +2,9 @@ import { createBrowserRouter } from "react-router";
 import { CenterSheet } from "../features/centers/CenterSheet";
 import { PostFlow } from "../features/community/PostFlow";
 import { PostSheet } from "../features/community/PostSheet";
+import { FeedScreen } from "../features/feed/FeedScreen";
+import { NewFeedPost } from "../features/feed/NewFeedPost";
+import { ThreadSheet } from "../features/feed/ThreadSheet";
 import { IncidentSheet } from "../features/incidents/IncidentSheet";
 import { ListScreen } from "../features/list/ListScreen";
 import { MapScreen } from "../features/map/MapScreen";
@@ -31,6 +34,15 @@ export const router = createBrowserRouter([
       { path: "/ask/help", element: <ReportFlow /> },
       { path: "/ask/place", element: <PlaceFlow /> },
       { path: "/ask/post", element: <PostFlow /> },
+      {
+        path: "/feed",
+        element: <FeedScreen />,
+        children: [
+          { index: true, element: null },
+          { path: "new", element: <NewFeedPost /> },
+          { path: ":id", element: <ThreadSheet /> },
+        ],
+      },
       { path: "/me", element: <MeScreen /> },
     ],
   },
