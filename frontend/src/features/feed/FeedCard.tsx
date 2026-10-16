@@ -1,7 +1,8 @@
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import type { FeedPost } from "../../api/types";
 import { Avatar } from "../../components/Avatar";
 import { Icon } from "../../components/Icon";
+import { useIntentionalTap } from "../../hooks/useIntentionalTap";
 import { format, t } from "../../i18n";
 import { timeAgo } from "../../utils/format";
 import { useLikePost } from "./api";
@@ -9,13 +10,21 @@ import styles from "./Feed.module.css";
 import { LikeButton } from "./LikeButton";
 import { TOPIC_EMOJI } from "./meta";
 
-/** One post: who, where, when, the text, then likes and comments. In a thread it shows in full. */
+/**
+ * One post: who, where, when, the text, then likes and comments. In the feed the whole card opens
+ * the thread (keyboard and screen readers use the comments link); in a thread it shows in full.
+ */
 export function FeedCard({ post, inThread = false }: { post: FeedPost; inThread?: boolean }) {
   const like = useLikePost();
+  const navigate = useNavigate();
   const threadLink = `/feed/${post.id}`;
+  const tap = useIntentionalTap(() => navigate(threadLink));
 
   return (
-    <article className={[styles.card, inThread && styles.cardInThread].filter(Boolean).join(" ")}>
+    <article
+      className={[styles.card, inThread ? styles.cardInThread : styles.tappable].filter(Boolean).join(" ")}
+      {...(inThread ? {} : tap)}
+    >
       <header className={styles.cardHeader}>
         <Avatar name={post.author.full_name} />
         <span className={styles.who}>
@@ -27,13 +36,7 @@ export function FeedCard({ post, inThread = false }: { post: FeedPost; inThread?
         </span>
       </header>
 
-      {inThread ? (
-        <p className={styles.body}>{post.body}</p>
-      ) : (
-        <Link to={threadLink} className={[styles.body, styles.clamped].join(" ")}>
-          {post.body}
-        </Link>
-      )}
+      <p className={[styles.body, !inThread && styles.clamped].filter(Boolean).join(" ")}>{post.body}</p>
 
       <footer className={styles.actions}>
         <LikeButton

@@ -118,6 +118,23 @@
   box-shadow: var(--elevation-1);
 }
 
+/* Whole card opens the thread: show it's pressable, without moving anything around. */
+.tappable {
+  cursor: pointer;
+  transition:
+    background var(--duration) var(--ease),
+    box-shadow var(--duration) var(--ease);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tappable:hover {
+  box-shadow: var(--elevation-2);
+}
+
+.tappable:active:not(:has(a:active, button:active)) {
+  background: var(--surface-container-low);
+}
+
 .cardInThread {
   padding: 0 0 var(--space-2);
   border-radius: 0;
